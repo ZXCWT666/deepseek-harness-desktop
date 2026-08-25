@@ -9,6 +9,9 @@ dist/
 restart-verify.txt
 *.log
 
+# headless Chrome temp profiles (screenshot capture)
+docs/.chrome-tmp*/
+
 # OS / editor
 Thumbs.db
 .DS_Store

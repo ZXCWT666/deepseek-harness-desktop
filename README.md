@@ -8,6 +8,12 @@ DeepSeek Harness 桌面端（DSH Desktop）是 [DeepSeek Harness](https://github
 
 DeepSeek Harness 的核心哲学是「一切皆插件」：模型、工具、Agent 循环、技能（Skills）、甚至会话逻辑都可以通过 Cordis 组合包按需叠加或替换。桌面端在此基础上提供开箱即用的图形界面：会话管理、插件仓库、模型配置、任务与子代理可视化、令牌与余额监控等，并可随时通过 `dsh plugin` 安装第三方插件扩展能力，也可以 SSH / 局域网远程访问本机工作台。
 
+## 界面预览
+
+![新会话页面 - DeepSeek Harness 桌面端](docs/screenshot-new-session.png)
+
+*新会话页面：左侧工作区与设置，中间为「探索未至之境」输入区，支持标准模式 / 选择模型 / 全量访问权限切换。*
+
 ## 功能亮点
 
 - **一切皆插件**：基于 Cordis 的组合式架构，模型、工具、Agent 循环、指令全是插件，可自行组合、覆盖与替换。

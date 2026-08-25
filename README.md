@@ -61,21 +61,16 @@ dsh --profile web --dump-config  # 查看组合后的完整配置树（不启动
 
 > **远程访问**：SSH 启动时服务仍会打印 URL 行，但跳过自动打开浏览器——由 SSH 客户端或编辑器转发本地地址访问；`--trusted-host` 可声明信任的局域网主机。
 
-## 本仓库内容
+## 插件扩展开发
 
-- `dsh-balance-status/` — DeepSeek 账户余额 + Token 用量状态组件，注册为 web profile 的原生侧边栏插件（含 host 端 API、前端组件源码、构建与验证脚本），可作为桌面端插件的完整示例。
-- `scripts/` — Harness 重启与验证脚本（插件开发调试用）。
-- `package.json` / `pnpm-lock.yaml` — 工作区依赖（开发用）。
-
-### 插件开发速览
+DeepSeek Harness 坚持「一切皆插件」，桌面端同样原生支持通过 profile 插件扩展：插件以组合包（bundle）注入 profile，由 `dsh plugin` 命令统一安装与管理；前端组件可注册为原生 UI 插件（侧边栏、设置页等），获得与内置组件同等的集成深度。
 
 ```powershell
-# 安装本地插件到 web profile（会同步 dsh.profile.bundles 清单）
-dsh plugin --profile web add file:D:\dsh\dsh-balance-status
+# 安装插件（本地目录或 npm 包均可，会自动同步 dsh.profile.bundles 清单）
+dsh plugin --profile web add <插件路径或包名>
 
-# 修改 src/* 后重新构建客户端 bundle，并再次 add 刷新副本
-node dsh-balance-status/scripts/build-client.mjs
-dsh plugin --profile web add file:D:\dsh\dsh-balance-status
+# 修改插件源码后重新构建客户端 bundle，并再次安装刷新副本
+dsh plugin --profile web add <插件路径或包名>
 ```
 
 > 组合配置（composition）与客户端 bundle 发现均在服务启动时解析，profile 变更后需重启 Harness 应用生效。

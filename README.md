@@ -10,9 +10,15 @@ DeepSeek Harness 的核心哲学是「一切皆插件」：模型、工具、Age
 
 ## 界面预览
 
-![新会话页面 - DeepSeek Harness 桌面端](docs/screenshot-new-session.png)
+| 新会话页面 | 访问权限选择 |
+| --- | --- |
+| ![新会话页面](docs/screenshot-new-session.png) | ![访问权限选择（只读 / 工作区写入 / 完全访问）](docs/screenshot-access-modes.png) |
 
-*新会话页面：左侧工作区与设置，中间为「探索未至之境」输入区，支持标准模式 / 选择模型 / 全量访问权限切换。*
+| Agent 档位（关闭 / 低 / 高 / 最高） | 桌面端设置 |
+| --- | --- |
+| ![Agent 档位菜单](docs/screenshot-reasoning-levels.png) | ![设置 - 通用设置 / 模型 / 插件 / Agent 预设、外观主题](docs/screenshot-settings.png) |
+
+*新会话页面：左侧工作区与设置，中间为「探索未至之境」输入区，支持标准模式档位、访问权限与模型选择；设置页提供开机自启、托盘、Agent 预设、语言与外观主题等桌面端配置。*
 
 ## 功能亮点
 

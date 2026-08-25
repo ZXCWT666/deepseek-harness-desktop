@@ -1,0 +1,7 @@
+# The dsh-balance-status bundle patch. Applied after the base and web-app
+# bundle layers: mounts one row whose name is this package, pulling in both
+# the host half (webserver route + data aggregation) and the browser half
+# (the sidebar footer widget, served through the client-modules node half).
+- insert:
+    - id: balance-status
+      name: 'dsh-balance-status'

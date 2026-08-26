@@ -1025,7 +1025,8 @@ const WINDOW_UI_SCRIPT = `(function () {
     // 无法感知：监听窗口 resize 事件重排三键（防抖后取最终值，避免贴靠中途的
     // 瞬时坐标）。配合下面的轮询兜底，杜绝三键移位或跑出视野（"消失"）。
     try {
-      var resizeRafPending = false;
+    var resizeRafPending = false;
+    try {
       // 贴靠 / 缩放瞬间先做一次立即校正（每帧最多一次），再走防抖 settle：
       // 仅靠防抖会让三键在「最后一次 resize 事件 + 120ms」内停留在旧位置，
       // 表现为拖动窗口时三键一瞬间不在位。

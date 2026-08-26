@@ -68,7 +68,7 @@ Profile 层  组合包 bundles → cordis.patch.yml → --patch 覆盖
 
 ## 安装 / 快速开始
 
-1. 从 **Releases** 下载安装包（Windows 一键安装，免配置环境），启动后自动拉起 `http://127.0.0.1:3080`；
+1. 从 [**Releases**](https://github.com/ZXCWT666/deepseek-harness-desktop/releases/tag/v1.0.0) 下载 `DeepSeek Harness-1.0.0.zip`（Windows 便携版，免配置环境），解压后运行 `DeepSeek Harness.exe`，自动拉起 `http://127.0.0.1:3080`；
 2. **配置凭证**：设置 → Models 填入 DeepSeek API Key（默认读 `DEEPSEEK_API_KEY` 环境变量）；
 3. **新建会话**：输入任务回车即开始，当前目录为默认 workspace 根；
 4. 执行中实时查看思考与工具调用，需审批的工具弹出授权请求。

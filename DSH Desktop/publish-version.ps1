@@ -32,7 +32,7 @@ $api = "https://api.github.com/repos/$repo"
 
 # --- 0) GitHub 令牌：从系统 git 凭据取（不写入任何文件） ---
 function Get-GitHubToken {
-  $cred = 'protocol=https`nhost=github.com`n`n' | git credential fill 2>$null
+  $cred = "protocol=https`nhost=github.com`n`n" | git credential fill 2>$null
   $line = $cred | Where-Object { $_ -match '^password=' }
   if (-not $line) { return '' }
   return $line.Substring(9).Trim()
@@ -53,7 +53,8 @@ if ($Version) { $new = [version]$Version } else {
   else { $new = [version]"$($cur.Major).$($cur.Minor).$($cur.Build + 1)" }
 }
 $pkg.version = $new.ToString()
-$pkg | ConvertTo-Json -Depth 4 | Set-Content $pkgPath -Encoding UTF8
+# 注意：必须无 BOM 写入（PS5.1 的 Set-Content -Encoding UTF8 会带 BOM，JSON.parse 会失败）
+[System.IO.File]::WriteAllText($pkgPath, ($pkg | ConvertTo-Json -Depth 4), (New-Object System.Text.UTF8Encoding($false)))
 Write-Host "==> 版本: $cur -> $new" -ForegroundColor Cyan
 
 # --- 2) 构建包 + 生成发布 zip ---

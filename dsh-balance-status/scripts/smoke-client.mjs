@@ -5,8 +5,24 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const reactPath = require.resolve("react", { paths: ["C:/Users/USER/AppData/Local/Programs/DeepSeek Harness/resources/dsh/node_modules"] });
-const jsxRuntimePath = require.resolve("react/jsx-runtime", { paths: ["C:/Users/USER/AppData/Local/Programs/DeepSeek Harness/resources/dsh/node_modules"] });
+// React is resolved from a modules root that ships a matching version — the
+// dev workspace in a checkout, or an explicit override via REACT_MODULES_ROOT.
+const modulesRoots = [
+  process.env.REACT_MODULES_ROOT,
+  "D:/dsh/node_modules",
+].filter((candidate) => candidate !== undefined);
+const findReact = (spec) => {
+  for (const root of modulesRoots) {
+    try {
+      return require.resolve(spec, { paths: [root] });
+    } catch {
+      /* try the next candidate */
+    }
+  }
+  throw new Error(`react not found in ${modulesRoots.join(", ")} — set REACT_MODULES_ROOT`);
+};
+const reactPath = findReact("react");
+const jsxRuntimePath = findReact("react/jsx-runtime");
 const react = await import(new URL(`file:///${reactPath.replace(/\\/g, "/")}`));
 const jsxRuntime = await import(new URL(`file:///${jsxRuntimePath.replace(/\\/g, "/")}`));
 

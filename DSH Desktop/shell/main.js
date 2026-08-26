@@ -973,33 +973,38 @@ const WINDOW_UI_SCRIPT = `(function () {
       } catch (e) {}
     }
     var pillRef = null;
+    // 计算三键定位：优先锚定 Session log 胶囊中心，找不到时退回右上角。
+    // 只写变化的值，避免每次同步都触发重排。
     function placeWinCtl() {
       if (!ctl) return;
       syncStripSide();
+      var rx = null;
       if (pillRef && pillRef.isConnected) {
-        var rx = pillRef.getBoundingClientRect();
-        ctl.style.top = '2px';
-        ctl.style.left = (rx.left + rx.width / 2 - 58) + 'px';
-        ctl.style.right = 'auto';
-        return;
-      }
-      pillRef = null;
-      var all = document.querySelectorAll('*');
-      for (var i = 0; i < all.length; i++) {
-        var n = all[i];
-        if (n.childElementCount !== 0) continue;
-        if ((n.textContent || '').trim() === 'Session log') {
-          var pill = n.closest('button') || n;
-          var r = pill.getBoundingClientRect();
-          ctl.style.top = '2px';
-          ctl.style.left = (r.left + r.width / 2 - 58) + 'px';
-          ctl.style.right = 'auto';
-          pillRef = pill;
-          break;
+        rx = pillRef.getBoundingClientRect();
+      } else {
+        pillRef = null;
+        var all = document.querySelectorAll('*');
+        for (var i = 0; i < all.length; i++) {
+          var n = all[i];
+          if (n.childElementCount !== 0) continue;
+          if ((n.textContent || '').trim() === 'Session log') {
+            var pill = n.closest('button') || n;
+            rx = pill.getBoundingClientRect();
+            pillRef = pill;
+            break;
+          }
         }
       }
-      // 未找到锚点时固定回右上角默认位置
-      if (!pillRef) { ctl.style.top = '2px'; ctl.style.left = ''; ctl.style.right = '8px'; }
+      if (ctl.style.top !== '2px') ctl.style.top = '2px';
+      if (rx) {
+        var left = (rx.left + rx.width / 2 - 58) + 'px';
+        if (ctl.style.left !== left) ctl.style.left = left;
+        if (ctl.style.right !== 'auto') ctl.style.right = 'auto';
+      } else {
+        // 未找到锚点时固定回右上角默认位置
+        if (ctl.style.left !== '') ctl.style.left = '';
+        if (ctl.style.right !== '8px') ctl.style.right = '8px';
+      }
     }
     placeWinCtl();
     // 事件驱动：DOM 变化时（防抖 120ms）重算三键位置与弹层显示，不再高频全 DOM 扫描
@@ -1016,12 +1021,17 @@ const WINDOW_UI_SCRIPT = `(function () {
     try {
       new MutationObserver(scheduleWinSync).observe(document.body, { childList: true, subtree: true });
     } catch (e) {}
-    // 低频兜底校正：缓存引用直接取 rect（无需全 DOM 扫描）
+    // 窗口贴靠 / 拖动 / 缩放会改变页面布局但不产生 DOM 变更，MutationObserver
+    // 无法感知：监听窗口 resize 事件重排三键（防抖后取最终值，避免贴靠中途的
+    // 瞬时坐标）。配合下面的轮询兜底，杜绝三键移位或跑出视野（"消失"）。
+    try {
+      window.addEventListener('resize', scheduleWinSync);
+    } catch (e) {}
+    // 轮询兜底校正：贴靠结束后若无 DOM/尺寸事件（或事件早于布局稳定），1.5s 内
+    // 必然回到正确位置；pillRef 已缓存时开销极小（一次 rect 读取 + 比较）。
     setInterval(function () {
-      if (!pillRef && ctl) {
-        // 尚未定位到 Session log（可能还未渲染）：重新扫描（代价较高，仅未定位时执行）
-        placeWinCtl();
-      }
+      if (!ctl) return;
+      placeWinCtl();
     }, 1500);
     // 侧边栏品牌 logo 作为拖动把手（不遮挡任何交互元素）
     try {

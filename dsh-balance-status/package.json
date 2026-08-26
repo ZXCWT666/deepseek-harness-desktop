@@ -1,7 +1,7 @@
 {
   "name": "dsh-balance-status",
   "description": "DeepSeek account balance + token usage status widget for the web sidebar",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

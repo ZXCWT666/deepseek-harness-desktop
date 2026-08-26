@@ -1,13 +1,20 @@
 // Validation harness for the host half: drives the plugin with a fake ctx
 // wired to the real session logs and the real DeepSeek balance endpoint.
+// Reads $DSH_HOME (default ~/.dsh) and the DEEPSEEK_API_KEY credential.
 import { readFile, readdir, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { homedir } from "node:os";
 import { zstdDecompressSync } from "node:zlib";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const plugin = await import("../lib/index.js");
+
+/** Harness home override, defaulting to the user profile's .dsh. */
+const DSH_HOME = resolve(process.env.DSH_HOME ?? join(homedir(), ".dsh"));
+const SESSIONS_ROOT = join(DSH_HOME, "sessions");
+const CREDENTIALS_FILE = join(DSH_HOME, ".credentials.yaml");
 
 // debug: surface the underlying fetch cause
 const origFetch = globalThis.fetch;
@@ -31,7 +38,7 @@ const ctx = {
 			}
 		};
 		if (name === "credentials") return {
-			resolve: async (ref) => ({ value: readFileSync("C:/Users/USER/.dsh/.credentials.yaml", "utf8").match(/DEEPSEEK_API_KEY:\s*(\S+)/)[1], source: "file" })
+			resolve: async (ref) => ({ value: readFileSync(CREDENTIALS_FILE, "utf8").match(new RegExp(`${ref}:\\s*(\\S+)`))?.[1] ?? "", source: "file" })
 		};
 		if (name === "settings") return undefined;
 		if (name === "sessionPersistence") return realPersistence;
@@ -44,7 +51,6 @@ const ctx = {
 };
 
 // minimal persistence over the real session store
-const ROOT = "C:/Users/USER/.dsh/sessions";
 async function* walk(dir) {
 	for (const entry of await readdir(dir, { withFileTypes: true })) {
 		const path = join(dir, entry.name);
@@ -53,7 +59,7 @@ async function* walk(dir) {
 	}
 }
 const allLogs = [];
-for await (const f of walk(ROOT)) allLogs.push(f);
+for await (const f of walk(SESSIONS_ROOT)) allLogs.push(f);
 
 function decode(buffer) {
 	const parts = [];
@@ -118,6 +124,8 @@ console.log("balanceError:", JSON.stringify(payload.balanceError));
 console.log("usage.today:", JSON.stringify(payload.usage?.today));
 console.log("usage.week:", JSON.stringify(payload.usage?.week));
 console.log("usage.month:", JSON.stringify(payload.usage?.month));
+console.log("usage.all:", JSON.stringify(payload.usage?.all));
+console.log("targets:", JSON.stringify(payload.targets));
 console.log("syncedAt:", payload.syncedAt, new Date(payload.syncedAt).toISOString());
 
 // force refresh second call (cached path)

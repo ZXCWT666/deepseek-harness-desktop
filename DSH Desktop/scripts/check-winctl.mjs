@@ -1,0 +1,11 @@
+import fs from "node:fs";
+const asar = process.argv[2];
+const b = fs.readFileSync(asar);
+const L = b.readUInt32LE(12);
+const h = JSON.parse(b.subarray(16, 16 + L).toString());
+const e = h.files["main.js"];
+const t = b.subarray(16 + L + Number(e.offset), 16 + L + Number(e.offset) + Number(e.size)).toString();
+console.log("resize listener:", t.includes("addEventListener('resize'"));
+console.log("unconditional interval:", t.includes("setInterval(function () {\n      if (!ctl) return;"));
+console.log("placeWinCtl diff-write:", t.includes("if (ctl.style.left !== left)"));
+console.log("len:", t.length);

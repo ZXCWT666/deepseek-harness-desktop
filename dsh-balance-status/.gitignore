@@ -1,0 +1,14 @@
+# dependencies / builds
+node_modules/
+lib/_client.bundle.cjs
+dist/
+
+# machine-specific dev evidence
+restart-verify.txt
+*.log
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/

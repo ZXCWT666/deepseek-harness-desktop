@@ -972,39 +972,17 @@ const WINDOW_UI_SCRIPT = `(function () {
         if (side.style.width !== bw) side.style.width = bw;
       } catch (e) {}
     }
-    var pillRef = null;
-    // 计算三键定位：优先锚定 Session log 胶囊中心，找不到时退回右上角。
-    // 只写变化的值，避免每次同步都触发重排。
+    // 三键定位：固定在右上角（top:2px, right:16px），不再跟随 Session log 胶囊。
+    // 胶囊右对齐布局下两者视觉一致；而固定定位天然免疫窗口贴靠 / 拖动 / 缩放期间
+    // 的布局瞬移——此前跟随胶囊时，贴靠瞬间按钮会跟着胶囊的瞬时坐标移位 / 闪烁。
     function placeWinCtl() {
       if (!ctl) return;
       syncStripSide();
-      var rx = null;
-      if (pillRef && pillRef.isConnected) {
-        rx = pillRef.getBoundingClientRect();
-      } else {
-        pillRef = null;
-        var all = document.querySelectorAll('*');
-        for (var i = 0; i < all.length; i++) {
-          var n = all[i];
-          if (n.childElementCount !== 0) continue;
-          if ((n.textContent || '').trim() === 'Session log') {
-            var pill = n.closest('button') || n;
-            rx = pill.getBoundingClientRect();
-            pillRef = pill;
-            break;
-          }
-        }
-      }
-      if (ctl.style.top !== '2px') ctl.style.top = '2px';
-      if (rx) {
-        var left = (rx.left + rx.width / 2 - 58) + 'px';
-        if (ctl.style.left !== left) ctl.style.left = left;
-        if (ctl.style.right !== 'auto') ctl.style.right = 'auto';
-      } else {
-        // 未找到锚点时固定回右上角默认位置
+      try {
+        if (ctl.style.top !== '2px') ctl.style.top = '2px';
         if (ctl.style.left !== '') ctl.style.left = '';
-        if (ctl.style.right !== '8px') ctl.style.right = '8px';
-      }
+        if (ctl.style.right !== '16px') ctl.style.right = '16px';
+      } catch (e) {}
     }
     placeWinCtl();
     // 事件驱动：DOM 变化时（防抖 120ms）重算三键位置与弹层显示，不再高频全 DOM 扫描

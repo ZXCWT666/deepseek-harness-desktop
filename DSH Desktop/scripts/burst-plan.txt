@@ -1,0 +1,7 @@
+import fs from "node:fs";
+// 分析连拍：窗口最大化时三键应在 (2420..2560, 5..45)；还原后应在 (1730..1860, 300..340)
+// 若还原后的画面仍在旧位置出现按钮亮斑 = 残影/闪烁证据
+const { execFileSync } = require("child_process");
+const tmp = process.env.TEMP;
+// 用 PowerShell + System.Drawing 太慢，改用 node 直接解析 PNG 不可行（无库）。
+// 退回：每个文件用 PowerShell 一次算两个区域亮度，批量执行。

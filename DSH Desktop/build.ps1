@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 # DSH Desktop 构建脚本（1.0.0）
 # 从 shell\ 源码重建 app.asar -> 刷新 DeepSeek Harness-1.0.0\ 包
 # -> 写入 exe 版本号 -> 校验 -> （可选）重新压缩 zip
@@ -19,7 +19,7 @@ $root = $PSScriptRoot
 # --- node 解释器：优先本机 node，其次已安装应用的捆绑运行时 ---
 $node = (Get-Command node -ErrorAction SilentlyContinue | Select-Object -First 1).Source
 if (-not $node) {
-  $bundled = 'C:\Users\USER\AppData\Local\Programs\DeepSeek Harness\resources\node\node.exe'
+  $bundled = "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\node\node.exe"
   if (Test-Path $bundled) { $node = $bundled } else { throw 'node.exe 未找到' }
 }
 

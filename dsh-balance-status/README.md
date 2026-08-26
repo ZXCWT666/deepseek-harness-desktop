@@ -57,11 +57,11 @@ dsh-balance-status/
 
 ```powershell
 # one-time profile install (reconciles dsh.profile.bundles)
-dsh plugin --profile web add file:D:\dsh\dsh-balance-status
+dsh plugin --profile web add file:./dsh-balance-status
 
 # after editing src/*: rebuild lib/client.js, then re-add to refresh the copy
 node scripts/build-client.mjs
-dsh plugin --profile web add file:D:\dsh\dsh-balance-status
+dsh plugin --profile web add file:./dsh-balance-status
 ```
 
 Composition and client-bundle discovery both resolve at server start, so a

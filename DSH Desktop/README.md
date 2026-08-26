@@ -99,15 +99,21 @@ node .\DSH Desktop\scripts\verify-strip-fix.mjs      # 输出 dsh-topstrip displ
 ## 版本发布流程（升级协议）
 
 > 约定：**每修复一个 bug 后，先询问是否升级；用户确认后自动递增版本号、
-> 构建并推送到 GitHub。**
+> 构建并把新版本发布到 GitHub Releases（正文写明修了哪些 bug）。**
 
 ```powershell
-# 默认递增 patch（1.0.2 → 1.0.4），也可 -Bump minor / major 或直接 -Version 1.1.0
-powershell -ExecutionPolicy Bypass -File .\DSH Desktop\publish-version.ps1 -Bump patch -Message "修复 xxx"
+# 默认递增 patch（1.0.2 → 1.0.3），也可 -Bump minor / major 或直接 -Version 1.1.0
+powershell -ExecutionPolicy Bypass -File .\DSH Desktop\publish-version.ps1 -Bump patch `
+    -Message "修复 xxx" -Notes @"
+- 修复1：xxx
+- 修复2：yyy
+"@
 
-# 步骤：改 shell\package.json 版本 → build.ps1 构建包 →
-#       git add -A → git commit "release: DSH Desktop v<版本> — <Message>" → git push
+# 流程：改版本号 → build.ps1 构建 → tar 打包 zip →
+#       git commit/push（源码）→ tag v<版本> 并推送 →
+#       创建 GitHub Release（正文 = -Notes 修复清单，缺省自动取 git log）→ 上传 zip 附件
+# 只构建+推源码不发布 Release：加 -NoRelease
 ```
 
 发布产物（`DeepSeekHarness-<版本>\`、`*.zip`、`artifacts\`）已被 `.gitignore` 排除，
-仓库只同步源码与脚本。
+仓库只同步源码与脚本；发行版 zip 作为 GitHub Release 附件分发。

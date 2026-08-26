@@ -917,6 +917,19 @@ const WINDOW_UI_SCRIPT = `(function () {
         '#root{height:calc(100vh - 30px)}';
       document.head.appendChild(st);
     }
+    // 页面顶部的 30px 偏移必须内联 + !important 兜底：Web 端样式表（静态 CSS 或
+    // 客户端模块后期注入的样式）可能覆盖 body/#root 规则，导致内容整体上移、
+    // 页头（标题/ Session log 胶囊）顶部被空条压住。内联 !important 优先级高于
+    // 一切普通样式表，唯一失效条件是被页面重新写 body/#root 的内联样式，因此
+    // 每次布局同步时重施一次。
+    function applyTopPadding() {
+      try {
+        document.body.style.setProperty('padding-top', '30px', 'important');
+        var root = document.getElementById('root');
+        if (root) root.style.setProperty('height', 'calc(100vh - 30px)', 'important');
+      } catch (e) {}
+    }
+    applyTopPadding();
     // 空条背景层：整体为应用基色，左侧按侧边栏延伸（背景 + 右边框线贯通空条）
     if (!document.getElementById('dsh-topstrip')) {
       var ts = document.createElement('div');
@@ -995,6 +1008,7 @@ const WINDOW_UI_SCRIPT = `(function () {
       if (winSyncTimer) return;
       winSyncTimer = setTimeout(function () {
         winSyncTimer = null;
+        applyTopPadding();
         placeWinCtl();
         hideCheck();
       }, 120);

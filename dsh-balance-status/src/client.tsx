@@ -359,7 +359,7 @@ function BalanceStatus({ wide, t }: BalanceStatusProps) {
 					</section>
 					<section className={styles.block}>
 						<span className={styles.caption}>{t("modal.calls")}</span>
-						<span className={styles.balanceMain} style={{ fontSize: 16, lineHeight: 22, fontWeight: 500 }}>
+						<span className={styles.callMain}>
 							{usage !== null ? `${formatFull(usage.month.calls)} ${t("modal.callsUnit")}` : "—"}
 						</span>
 					</section>

@@ -52,6 +52,7 @@ var styles = {
   block: "dbs-block",
   caption: "dbs-caption",
   balanceMain: "dbs-balanceMain",
+  callMain: "dbs-callMain",
   balanceSub: "dbs-balanceSub",
   rows: "dbs-rows",
   detailRow: "dbs-detailRow",
@@ -135,6 +136,7 @@ var cssText = `
 .dbs-block{display:flex;flex-direction:column;gap:6px}
 .dbs-caption{color:var(--dsw-alias-label-caption);text-transform:uppercase;letter-spacing:.04em;font-size:12px;line-height:18px}
 .dbs-balanceMain{color:var(--dsw-alias-label-primary);font-size:24px;line-height:32px;font-weight:600}
+.dbs-callMain{color:var(--dsw-alias-label-primary);font-size:16px;line-height:22px;font-weight:500}
 .dbs-balanceSub{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
 .dbs-rows{display:flex;flex-direction:column}
 .dbs-detailRow{display:flex;align-items:baseline;gap:8px;height:28px}
@@ -149,6 +151,56 @@ var cssText = `
 .dbs-syncNote{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;display:inline-flex;align-items:center;gap:6px}
 .dbs-spin{animation:dbs-spin 1s linear infinite}
 @keyframes dbs-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+/* \u2500\u2500 glass panel + high-contrast text \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+   Theme-paired frosted glass. Light theme: white frosted sheet (white veil
+   replaces the dark modal mask via :has() so the glass never reads black)
+   with dark near-black text. Dark theme: fully transparent glass (blur +
+   sheen only) with bright near-white text. Each theme sets its own ramp. */
+/* light theme (default): white glass + dark ramp */
+.dbs-modal{
+  background:rgba(255,255,255,.42);
+  -webkit-backdrop-filter:blur(30px) saturate(1.6);
+  backdrop-filter:blur(30px) saturate(1.6);
+  border-color:rgba(255,255,255,.65);
+  box-shadow:var(--dsw-shadow-lv3), inset 0 1px 0 rgba(255,255,255,.8);
+  color:#171a21;
+}
+.dbs-modal .dbs-caption,
+.dbs-modal .dbs-balanceSub,
+.dbs-modal .dbs-modelMeta,
+.dbs-modal .dbs-muted,
+.dbs-modal .dbs-syncNote{color:#5b6472}
+.dbs-modal .dbs-detailLabel{color:#333c48}
+.dbs-modal .dbs-balanceMain,
+.dbs-modal .dbs-callMain,
+.dbs-modal .dbs-detailValue,
+.dbs-modal .dbs-modelName{color:#101318}
+.dbs-modal .dbs-error{color:#d64545}
+body:not([data-ds-dark-theme]) div[role="presentation"]:has(> .dbs-modal) > div[aria-hidden="true"]{
+  background:rgba(255,255,255,.32);
+  -webkit-backdrop-filter:none;
+  backdrop-filter:none;
+}
+/* dark theme: pure glass + white ramp */
+body[data-ds-dark-theme] .dbs-modal{
+  background:transparent;
+  -webkit-backdrop-filter:blur(32px) saturate(2);
+  backdrop-filter:blur(32px) saturate(2);
+  border-color:color-mix(in srgb, var(--dsw-alias-border-inverted) 35%, transparent);
+  box-shadow:var(--dsw-shadow-lv3), inset 0 1px 0 color-mix(in srgb, #ffffff 16%, transparent);
+  color:#eef1f6;
+}
+body[data-ds-dark-theme] .dbs-modal .dbs-caption,
+body[data-ds-dark-theme] .dbs-modal .dbs-balanceSub,
+body[data-ds-dark-theme] .dbs-modal .dbs-modelMeta,
+body[data-ds-dark-theme] .dbs-modal .dbs-muted,
+body[data-ds-dark-theme] .dbs-modal .dbs-syncNote{color:#a9b3c2}
+body[data-ds-dark-theme] .dbs-modal .dbs-detailLabel{color:#c9d1dc}
+body[data-ds-dark-theme] .dbs-modal .dbs-balanceMain,
+body[data-ds-dark-theme] .dbs-modal .dbs-callMain,
+body[data-ds-dark-theme] .dbs-modal .dbs-detailValue,
+body[data-ds-dark-theme] .dbs-modal .dbs-modelName{color:#f6f8fb}
+body[data-ds-dark-theme] .dbs-modal .dbs-error{color:#ff8a80}
 @media (prefers-reduced-motion:reduce){
   .dbs-spin{animation:none}
   .dbs-barFill{transition:none}
@@ -428,7 +480,7 @@ function BalanceStatus({ wide, t }) {
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("section", { className: styles.block, children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: styles.caption, children: t("modal.calls") }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: styles.balanceMain, style: { fontSize: 16, lineHeight: 22, fontWeight: 500 }, children: usage !== null ? `${formatFull(usage.month.calls)} ${t("modal.callsUnit")}` : "\u2014" })
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: styles.callMain, children: usage !== null ? `${formatFull(usage.month.calls)} ${t("modal.callsUnit")}` : "\u2014" })
             ] }),
             error !== null && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: styles.error, role: "alert", children: error }),
             loading && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: styles.muted, role: "status", children: t("loading") })

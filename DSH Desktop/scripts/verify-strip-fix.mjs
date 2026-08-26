@@ -36,6 +36,12 @@ try {
   const ctl = dom.match(/id="dsh-winctl"[^>]*style="([^"]*)"/);
   console.log("dsh-topstrip style:", hit ? hit[1] : "NOT FOUND");
   console.log("dsh-winctl style:", ctl ? ctl[1] : "NOT FOUND");
+  // 30px 顶部偏移必须以内联 !important 生效（body 样式属性中应出现 padding-top: 30px）
+  const bodyStyle = dom.match(/<body([^>]*)>/);
+  console.log("body tag:", bodyStyle ? bodyStyle[1].replace(/ style="([^"]*)"/, ' style="[ $1 ]"') : "NOT FOUND");
+  const okPad = /padding-top:\s*30px/.test(bodyStyle ? bodyStyle[1] : "");
+  const okImp = /!important/.test(bodyStyle ? bodyStyle[1] : "");
+  console.log("body inline padding-top 30px:", okPad, "| !important:", okImp);
 } catch (e) {
   console.log("ERROR", e.message);
 }

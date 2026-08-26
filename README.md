@@ -93,16 +93,6 @@ dsh plugin --profile web remove <插件名>        # 卸载
 
 > profile 变更后需重启应用生效。
 
-## 桌面端构建工作区（DSH Desktop/）
-
-本仓库的 [`DSH Desktop/`](DSH%20Desktop/README.md) 是桌面端 v1.0.0 的纯壳封装构建工作区：Electron 外壳（`shell/main.js`）只负责窗口、服务自愈、托盘与等待页，界面由内置 `dsh web` 提供。含两个已验证修复（图片查看器关闭按钮遮挡、等待页鲸鱼间距），一键构建：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File "DSH Desktop\build.ps1" -Version 1.0.0 -Zip
-```
-
-> 便携版安装包（~255MB）超出 GitHub 单文件 100MB 限制不入库，通过 Releases 发布。
-
 ## License
 
 [MIT](LICENSE)

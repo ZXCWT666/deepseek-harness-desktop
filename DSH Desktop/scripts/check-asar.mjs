@@ -17,5 +17,6 @@ console.log("asar pkg version:", pkg.version);
 const main = read("main.js");
 console.log("main.js has gap fix:", main.includes("gap:clamp(6px,1vw,14px)"));
 console.log("main.js has strip fix:", main.includes("全屏弹层（图片查看器等）"));
+console.log("main.js has settings-card defer fix:", main.includes("}, 00);"));
 const name = read("assets/brand-name.svg");
 console.log("brand-name.svg preserveAspectRatio:", name.includes('preserveAspectRatio="xMinYMin meet"'));

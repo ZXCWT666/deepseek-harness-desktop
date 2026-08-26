@@ -812,7 +812,7 @@ const UI_LOCALIZE_SCRIPT = `(function () {
       cardSyncTimer = null;
       mountSettingsCard();
       syncCardVisibility();
-    }, 80);
+    }, 00);
   }
   try {
     new MutationObserver(scheduleCardSync).observe(document.body, {

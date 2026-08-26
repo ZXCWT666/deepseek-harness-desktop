@@ -1,11 +1,11 @@
 # ============================================================
-# DSH Desktop 构建脚本（1.0.0）
-# 从 shell\ 源码重建 app.asar -> 刷新 DeepSeek Harness-1.0.0\ 包
+# DSH Desktop 构建脚本
+# 从 shell\ 源码重建 app.asar -> 刷新 DeepSeekHarness-<版本>\ 包
 # -> 写入 exe 版本号 -> 校验 -> （可选）重新压缩 zip
 #
 # 用法：
 #   powershell -ExecutionPolicy Bypass -File build.ps1            # 用 shell\package.json 的版本
-#   powershell -ExecutionPolicy Bypass -File build.ps1 -Version 1.0.0
+#   powershell -ExecutionPolicy Bypass -File build.ps1 -Version 1.0.1
 #   powershell -ExecutionPolicy Bypass -File build.ps1 -Zip       # 构建后重新打包 zip
 # ============================================================
 param(
@@ -35,8 +35,15 @@ $asarOut = "$root\artifacts\app.$ver.asar"
 if ($LASTEXITCODE -ne 0) { throw "pack-asar 失败 (exit $LASTEXITCODE)" }
 Write-Host "==> app.asar 已生成: $asarOut" -ForegroundColor Green
 
-# --- 2) 刷新 DeepSeek Harness-1.0.0\ 包 ---
-$appDir = "$root\DeepSeek Harness-1.0.0"
+# --- 2) 刷新 DeepSeekHarness-<版本>\ 包（缺失时从上一版包目录复制模板） ---
+$appDir = "$root\DeepSeekHarness-$ver"
+if (-not (Test-Path "$appDir\resources\app.asar")) {
+  $template = Get-ChildItem $root -Directory -Filter "DeepSeekHarness-*" |
+    Sort-Object Name -Descending | Select-Object -First 1
+  if (-not $template) { throw "未找到 DeepSeekHarness-* 包模板，请先复制一份已安装的 DeepSeek Harness 应用目录" }
+  Write-Host "==> 从模板复制: $($template.Name) -> $appDir" -ForegroundColor Yellow
+  Copy-Item $template.FullName $appDir -Recurse -Force
+}
 if (-not (Test-Path "$appDir\resources\app.asar")) {
   throw "未找到 $appDir\resources\app.asar —— 请先复制一份已安装的 DeepSeek Harness 应用目录作为包模板（或先运行 extract 流程）"
 }
@@ -56,14 +63,14 @@ Write-Host "==> exe 版本号已更新: $ver.0" -ForegroundColor Green
 & $node "$root\scripts\check-asar.mjs" "$appDir\resources\app.asar"
 if ($LASTEXITCODE -ne 0) { throw "check-asar 失败 (exit $LASTEXITCODE)" }
 
-# --- 5) （可选）重新压缩 zip ---
+# --- 5） （可选）重新压缩 zip ---
 if ($Zip) {
   Push-Location $root
-  Remove-Item "$root\DeepSeek Harness-1.0.0.zip" -Force -ErrorAction SilentlyContinue
-  tar.exe -a -c -f "$root\DeepSeek Harness-1.0.0.zip" "DeepSeek Harness-1.0.0"
+  Remove-Item "$root\DeepSeek Harness-$ver.zip" -Force -ErrorAction SilentlyContinue
+  tar.exe -a -c -f "$root\DeepSeek Harness-$ver.zip" $appDir
   Pop-Location
   if ($LASTEXITCODE -ne 0) { throw "tar 失败 (exit $LASTEXITCODE)" }
-  Write-Host "==> zip 已重新生成: $root\DeepSeek Harness-1.0.0.zip" -ForegroundColor Green
+  Write-Host "==> zip 已重新生成: $root\DeepSeek Harness-$ver.zip" -ForegroundColor Green
 }
 
 Write-Host "==> 完成。包目录: $appDir" -ForegroundColor Green

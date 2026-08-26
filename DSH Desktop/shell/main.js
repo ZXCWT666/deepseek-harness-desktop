@@ -1025,7 +1025,23 @@ const WINDOW_UI_SCRIPT = `(function () {
     // 无法感知：监听窗口 resize 事件重排三键（防抖后取最终值，避免贴靠中途的
     // 瞬时坐标）。配合下面的轮询兜底，杜绝三键移位或跑出视野（"消失"）。
     try {
-      window.addEventListener('resize', scheduleWinSync);
+    var resizeRafPending = false;
+    try {
+      // 贴靠 / 缩放瞬间先做一次立即校正（每帧最多一次），再走防抖 settle：
+      // 仅靠防抖会让三键在「最后一次 resize 事件 + 120ms」内停留在旧位置，
+      // 表现为拖动窗口时三键一瞬间不在位。
+      window.addEventListener('resize', function () {
+        try {
+          if (!resizeRafPending) {
+            resizeRafPending = true;
+            requestAnimationFrame(function () {
+              resizeRafPending = false;
+              placeWinCtl();
+            });
+          }
+        } catch (e) {}
+        scheduleWinSync();
+      });
     } catch (e) {}
     // 轮询兜底校正：贴靠结束后若无 DOM/尺寸事件（或事件早于布局稳定），1.5s 内
     // 必然回到正确位置；pillRef 已缓存时开销极小（一次 rect 读取 + 比较）。

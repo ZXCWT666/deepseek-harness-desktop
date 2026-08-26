@@ -101,7 +101,8 @@ elseif ($lastTag) {
 
 # --- 6) 创建 Release 并上传 zip ---
 $payload = @{ tag_name = $tag; name = "DSH Desktop v$new"; body = $body; draft = $false; prerelease = $false } | ConvertTo-Json
-$release = Invoke-RestMethod -Method Post -Uri "$api/releases" -Headers $headers -Body $payload -ContentType 'application/json' -TimeoutSec 60
+# 必须以 UTF-8 字节发送：字符串会被 PS5.1 按系统编码（GBK）转码，中文变乱码
+$release = Invoke-RestMethod -Method Post -Uri "$api/releases" -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($payload)) -ContentType 'application/json; charset=utf-8' -TimeoutSec 60
 Write-Host "==> Release 已创建: $($release.html_url)" -ForegroundColor Green
 
 $assetName = "DeepSeek Harness-$new.zip"

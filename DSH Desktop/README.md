@@ -70,6 +70,9 @@ DSH Desktop\
    修复：`shell\main.js` 监听 `window.resize`（防抖 120ms 取最终值）重排三键；
    1.5s 轮询兜底改为无条件校正（缓存锚点只读一次 rect 并比较，漂移即修正）；
    `placeWinCtl()` 只写入变化值，锚点失联自动重扫，找不到才退回右上角。
+   追加（同 v1.0.3）：拖动窗口瞬间三键仍会闪现不在位——防抖期间位置滞后；
+   改为 resize 时先用 requestAnimationFrame 立即校正一次（每帧最多一次），
+   再走防抖 settle，贴靠/缩放/拖动全程跟手。
 
 ## 重新构建 / 重新打包
 

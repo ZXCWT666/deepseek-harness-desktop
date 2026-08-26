@@ -52,11 +52,11 @@ DSH Desktop\
 ## 重新构建 / 重新打包
 
 ```powershell
-# 一键重建（默认版本 = shell\package.json 的版本）
-powershell -ExecutionPolicy Bypass -File D:\dsh\DSH Desktop\build.ps1
+# 一键重建（默认版本 = shell\package.json 的版本；从仓库根目录运行）
+powershell -ExecutionPolicy Bypass -File .\DSH Desktop\build.ps1
 
 # 指定版本并重新生成 zip
-powershell -ExecutionPolicy Bypass -File D:\dsh\DSH Desktop\build.ps1 -Version 1.0.0 -Zip
+powershell -ExecutionPolicy Bypass -File .\DSH Desktop\build.ps1 -Version 1.0.0 -Zip
 ```
 
 构建流程：`pack-asar.mjs`（shell\ → artifacts\app.<ver>.asar）→ 覆盖
@@ -67,9 +67,9 @@ powershell -ExecutionPolicy Bypass -File D:\dsh\DSH Desktop\build.ps1 -Version 1
 ## 验证
 
 ```powershell
-node D:\dsh\DSH Desktop\scripts\check-asar.mjs "D:\dsh\DSH Desktop\DeepSeek Harness-1.0.0\resources\app.asar"
-node D:\dsh\DSH Desktop\scripts\verify-waiting-page.mjs   # 输出渲染后的等待页间距
-node D:\dsh\DSH Desktop\scripts\verify-strip-fix.mjs      # 输出 dsh-topstrip display 状态
+node .\DSH Desktop\scripts\check-asar.mjs ".\DSH Desktop\DeepSeek Harness-1.0.0\resources\app.asar"
+node .\DSH Desktop\scripts\verify-waiting-page.mjs   # 输出渲染后的等待页间距
+node .\DSH Desktop\scripts\verify-strip-fix.mjs      # 输出 dsh-topstrip display 状态
 ```
 
 ## 部署 / 回滚

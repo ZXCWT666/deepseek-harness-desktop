@@ -36,7 +36,6 @@ Profile 层  组合包 bundles → cordis.patch.yml → --patch 覆盖
 - **完整 Agent 工具箱**：Bash/PowerShell（含持久 PTY）、文件系统、Web 搜索与抓取、子代理、工作流、目标循环（goal）、规划模式、技能（skills）、MCP 外部工具接入；
 - **健壮会话**：JSONL + zstd 落盘、崩溃轮次自动修复、检查点、SQLite 全文检索、自动压缩控制上下文成本；
 - **模型接入**：DeepSeek 官方路由（上下文窗口 100 万、thinking/reasoningEffort 可调）+ pi-ai 通用多提供方；5 次重试、指数退避 500ms→10s + jitter；
-- **Token 透明**：用量计量 + 侧边栏余额实时展示；超大工具结果自动 spill 出上下文；
 - **安全可控**：三档权限预设（read-only / workspace-write / danger-full-access）、三层沙箱（bwrap / Seatbelt / Windows ACL 受限令牌）、凭证文件 0600 原子写、配置只引用密钥不携带密钥；
 - **可视化 GUI**：会话时间线、Trajectory 轨迹检查器、后台任务面板、插件清单、模型与凭证管理、主题（浅色/深色/跟随系统）。
 

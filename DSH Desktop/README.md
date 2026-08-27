@@ -1,18 +1,18 @@
-# DSH Desktop 桌面端构建工作区（版本 1.0.3）
+# DSH Desktop 桌面端构建工作区（版本 1.1.0）
 
 DeepSeek Harness 桌面端的源码与构建产物集中目录。桌面端为「纯壳封装 + 服务自愈」：
 Electron 外壳（`shell\main.js`）只做窗口与等待页，界面本身由内置 `dsh web` 服务
-（`DeepSeekHarness-1.0.3\resources\dsh` + `node`）提供。
+（`DeepSeekHarness-1.1.0\resources\dsh` + `node`）提供。
 
 ## 目录结构
 
 ```
 DSH Desktop\
-├── DeepSeekHarness-1.0.3\        完整便携版应用（可直接运行 DeepSeek Harness.exe）
-├── DeepSeek Harness-1.0.3.zip     上述目录的 zip 压缩包（255 MB）
+├── DeepSeekHarness-1.1.0\        完整便携版应用（可直接运行 DeepSeek Harness.exe）
+├── DeepSeek Harness-1.1.0.zip     上述目录的 zip 压缩包（255 MB）
 ├── shell\                        桌面端外壳源码（构建 app.asar 的输入）
 │   ├── main.js                   主进程：窗口、服务自愈、托盘、等待页、内置窗口控件
-│   ├── package.json              app 版本（当前 1.0.3）
+│   ├── package.json              app 版本（当前 1.1.0）
 │   └── assets\
 │       ├── brand-mark.svg        等待页鲸鱼图标
 │       ├── brand-name.svg        等待页 deepseek HARNESS 字标
@@ -81,6 +81,14 @@ DSH Desktop\
    胶囊为右对齐布局，视觉一致，但固定定位天然免疫一切窗口操作下的布局瞬移。
    实测：窗口 1516×958 → 1000×720 缩放，按钮位置恒定无移位。
 
+7. **三平台适配：Windows / Linux / macOS**（1.1.0）
+   - 同一套代码直接适配三系统（不重写）：`bundledRuntime()` 去平台限制、
+     macOS 原生红绿灯（hiddenInset + 44px 空条让位）、Windows 专属 API 加保护
+   - electron-builder 三平台打包（win: nsis/portable；linux: AppImage/deb；mac: dmg/zip）
+   - `fetch-runtime.mjs` 按平台获取官方 Node + dsh 依赖（原生模块按平台安装）
+   - GitHub Actions 四矩阵（win / linux / mac-arm64 / mac-x64）构建发布链：
+     推 v* tag 自动产出三平台安装包并挂到同名 Release
+
 ## 重新构建 / 重新打包
 
 ```powershell
@@ -88,28 +96,28 @@ DSH Desktop\
 powershell -ExecutionPolicy Bypass -File .\DSH Desktop\build.ps1
 
 # 指定版本并重新生成 zip
-powershell -ExecutionPolicy Bypass -File .\DSH Desktop\build.ps1 -Version 1.0.3 -Zip
+powershell -ExecutionPolicy Bypass -File .\DSH Desktop\build.ps1 -Version 1.1.0 -Zip
 ```
 
 构建流程：`pack-asar.mjs`（shell\ → artifacts\app.<ver>.asar）→ 覆盖
-`DeepSeekHarness-1.0.3\resources\app.asar` → `rcedit` 写入 exe 版本
-（1.0.3 → `1.0.3.0`）→ `check-asar.mjs` 校验。依赖：`node`（或已安装应用的
+`DeepSeekHarness-1.1.0\resources\app.asar` → `rcedit` 写入 exe 版本
+（1.1.0 → `1.1.0.0`）→ `check-asar.mjs` 校验。依赖：`node`（或已安装应用的
 捆绑运行时）、Chrome（仅验证脚本需要）。
 
 ## 验证
 
 ```powershell
-node .\DSH Desktop\scripts\check-asar.mjs ".\DSH Desktop\DeepSeekHarness-1.0.3\resources\app.asar"
+node .\DSH Desktop\scripts\check-asar.mjs ".\DSH Desktop\DeepSeekHarness-1.1.0\resources\app.asar"
 node .\DSH Desktop\scripts\verify-waiting-page.mjs   # 输出渲染后的等待页间距
 node .\DSH Desktop\scripts\verify-strip-fix.mjs      # 输出 dsh-topstrip display 状态
 ```
 
 ## 部署 / 回滚
 
-- **直接使用**：解压 `DeepSeek Harness-1.0.3.zip`（或运行目录内 `DeepSeek Harness.exe`），
+- **直接使用**：解压 `DeepSeek Harness-1.1.0.zip`（或运行目录内 `DeepSeek Harness.exe`），
   端口默认 `http://127.0.0.1:3080`（桌面端启动内置 dsh web 服务）。
 - **替换已安装版本**：退出应用后将 `resources\app.asar` 换成本包的
-  `DeepSeekHarness-1.0.3\resources\app.asar` 即可。
+  `DeepSeekHarness-1.1.0\resources\app.asar` 即可。
 - **shell 源码引导**：如需在任意的原版 app.asar 上重做修改，先
   `node scripts\extract-asar.mjs <输出目录> <app.asar>` 解包出原始源码，再比对
   本目录 `shell\` 中的修改（见上文「版本历史中的修复」）。

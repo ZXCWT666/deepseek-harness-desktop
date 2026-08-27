@@ -7,12 +7,13 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { execFileSync, spawnSync } from "node:child_process";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 
 const NODE_VERSION = process.env.DSH_BUNDLED_NODE || "v26.7.0";
-const root = path.resolve(new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"));
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const runtimeDir = path.join(root, "runtime");
 const nodeDir = path.join(runtimeDir, "node");
 const dshDir = path.join(runtimeDir, "dsh");

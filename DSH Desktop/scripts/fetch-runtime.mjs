@@ -87,7 +87,9 @@ fs.mkdirSync(dshDir, { recursive: true });
 fs.writeFileSync(path.join(dshDir, "package.json"), JSON.stringify({ name: "dsh-bundled", private: true, dependencies: { "@deepseek-ai/dsh": "latest" } }, null, 2));
 const npm = platform === "win32" ? "npm.cmd" : "npm";
 const npmExe = spawnSync("where", ["npm.cmd"], { encoding: "utf8" }).status === 0 ? "npm.cmd" : "npm";
-const r = spawnSync(npmExe, ["install", "--no-audit", "--no-fund", "--loglevel=error"], { cwd: dshDir, stdio: "inherit", shell: platform === "win32" });
+// macOS arm64 runner 内存较小，dsh 依赖树安装会触发 Node 堆 OOM：放大堆上限
+const npmEnv = { ...process.env, NODE_OPTIONS: "--max-old-space-size=4096" };
+const r = spawnSync(npmExe, ["install", "--no-audit", "--no-fund", "--loglevel=error"], { cwd: dshDir, stdio: "inherit", shell: platform === "win32", env: npmEnv });
 if (r.status !== 0) fail(`npm install failed (${r.status})`);
 if (!fs.existsSync(path.join(dshDir, "node_modules", "@deepseek-ai", "dsh", "lib", "bin.js"))) fail("dsh bundle missing after install");
 

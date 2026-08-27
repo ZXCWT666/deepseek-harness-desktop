@@ -71,8 +71,9 @@ if (!fs.existsSync(archive)) await download(nodeUrl, archive);
 
 fs.rmSync(nodeDir, { recursive: true, force: true });
 const inner = await extract(archive, dlDir);
-const srcNode = path.join(inner, nodeExe);
-if (!fs.existsSync(srcNode)) fail(`node binary not found in ${inner}`);
+// Windows zip：node.exe 在解包根目录；Linux/mac tar.xz：bin/node（官方 tar 包布局）
+const srcNode = [path.join(inner, nodeExe), path.join(inner, "bin", nodeExe)].find((p) => fs.existsSync(p));
+if (!srcNode) fail(`node binary not found in ${inner}`);
 fs.mkdirSync(nodeDir, { recursive: true });
 fs.copyFileSync(srcNode, path.join(nodeDir, nodeExe));
 if (platform !== "win32") fs.chmodSync(path.join(nodeDir, nodeExe), 0o755);

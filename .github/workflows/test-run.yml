@@ -22,7 +22,7 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           node scripts/fetch-runtime.mjs
-          npx electron-builder --linux AppImage
+          npx electron-builder --linux AppImage --publish never
 
       - name: Install GUI runtime libs + Xvfb + capture tools
         run: |

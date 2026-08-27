@@ -114,6 +114,20 @@ node .\DSH Desktop\scripts\verify-strip-fix.mjs      # 输出 dsh-topstrip displ
   `node scripts\extract-asar.mjs <输出目录> <app.asar>` 解包出原始源码，再比对
   本目录 `shell\` 中的修改（见上文「版本历史中的修复」）。
 
+## 三平台打包（Windows / Linux / macOS）
+
+现有桌面端同一套代码（`shell\main.js`）直接适配三平台，不重写：
+
+- **平台适配点**（`shell\main.js`）：
+  - `bundledRuntime()` 去掉 win32 限制，按平台解析 `resources\node\node(.exe)`（Linux/mac 兼容官方 tar 包布局）
+  - macOS：原生红绿灯（`titleBarStyle: hiddenInset` + 交通灯），注入脚本跳过自绘三键、空条加高到 44px 让位；Windows/Linux 维持无边框 + 自绘三键（30px 空条）
+  - `app.setAppUserModelId` 等 Windows 专属 API 加平台保护；托盘/自启/进程清理本身已有跨平台分支
+- **打包配置**：`electron-builder.yml`（app 目录 = `shell\`，产物 `release\`；win: nsis+portable，linux: AppImage+deb，mac: dmg+zip）
+- **运行时获取**：`node scripts\fetch-runtime.mjs` —— 按当前平台/架构下载官方 Node（v26.7.0）并 `npm install @deepseek-ai/dsh` 到 `runtime\`（原生模块按平台安装；CI 在各系统原生执行），electron-builder 经 `extraResources` 装入 `resources\node` + `resources\dsh`
+- **CI 发布链**：`.github/workflows/build-desktop.yml` —— windows/ubuntu/macos(arm64+x64) 矩阵；`workflow_dispatch` 手动触发或推送 `v*` tag 时构建并把安装包挂到同名 GitHub Release
+
+本机验证：Windows `--win nsis/portable` 构建通过；冒烟测试（DSH_SMOKE_TEST）确认产物用**自身内置运行时**拉起 dsh web 并正常加载页面。
+
 ## 版本发布流程（升级协议）
 
 > 约定：**每修复一个 bug 后，先询问是否升级；用户确认后自动递增版本号、

@@ -135,15 +135,22 @@ function findNodeExe() {
 }
 
 /**
- * 内置运行时（完全自包含）：打包了 Node 运行时与 dsh 依赖树，
- * 无需本机安装 Node / dsh 即可运行。非 Windows 返回 null。
+ * 内置运行时（完全自包含，三平台通用）：打包了 Node 运行时与 dsh 依赖树，
+ * 无需本机安装 Node / dsh 即可运行。node 可执行文件名按平台适配
+ * （Windows: node.exe；Linux / macOS: node），Linux/mac 下还兼容
+ * 官方 tar 包的 node 二进制名（node-v22-linux-x64/bin/node 等）。
  */
 function bundledRuntime() {
-  if (process.platform !== 'win32') return null;
   const root = app.isPackaged ? process.resourcesPath : path.join(__dirname, 'resources');
-  const node = path.join(root, 'node', 'node.exe');
+  const nodeDir = path.join(root, 'node');
+  const candidates = process.platform === 'win32'
+    ? [path.join(nodeDir, 'node.exe')]
+    : [path.join(nodeDir, 'node'), path.join(nodeDir, 'bin', 'node')];
   const bin = path.join(root, 'dsh', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js');
-  return fs.existsSync(node) && fs.existsSync(bin) ? { node, bin } : null;
+  for (const node of candidates) {
+    if (fs.existsSync(node) && fs.existsSync(bin)) return { node, bin };
+  }
+  return null;
 }
 
 function resolveServerCommand() {
@@ -851,6 +858,10 @@ const UI_LOCALIZE_SCRIPT = `(function () {
 const WINDOW_UI_SCRIPT = `(function () {
   if (window.__dshWinUiInstalled) return;
   window.__dshWinUiInstalled = true;
+  // 平台适配：macOS 用系统红绿灯（hiddenInset），不注入自绘三键；
+  // 空条高度给红绿灯让位（44px），Windows/Linux 保持 30px + 自绘三键。
+  var IS_MAC = /Mac|darwin/i.test(navigator.platform || '');
+  var STRIP_H = IS_MAC ? 44 : 30;
   var ctl = null;
   function mk(id, label, title) {
     var b = document.createElement('button');
@@ -867,7 +878,8 @@ const WINDOW_UI_SCRIPT = `(function () {
     return b;
   }
   function hideCheck() {
-    if (!ctl) return;
+    // macOS 无自绘三键，但空条仍需随大弹层隐藏（图片查看器关闭按钮不被遮）
+    if (!ctl && !document.getElementById('dsh-topstrip')) return;
     var els = document.querySelectorAll('[role="dialog"],[class*="lightbox"],[class*="modal"],[class*="viewer"]');
     var hide = false;
     for (var i = 0; i < els.length; i++) {
@@ -876,8 +888,8 @@ const WINDOW_UI_SCRIPT = `(function () {
       var r = el.getBoundingClientRect();
       if (r.width > 300 && r.height > 200) { hide = true; break; }
     }
-    ctl.style.display = hide ? 'none' : 'flex';
-    // 全屏弹层（图片查看器等）打开时同步隐藏顶部 30px 空条背景：空条是桌面端
+    if (ctl) ctl.style.display = hide ? 'none' : 'flex';
+    // 全屏弹层（图片查看器等）打开时同步隐藏顶部空条背景：空条是桌面端
     // 覆盖层，会遮住弹层顶部的自身控件（如图片查看器右上角关闭按钮 top:20px
     // 的上半部分被空条裁掉）。空条隐藏后该区域露出弹层的遮罩层，视觉连续，
     // 关闭按钮完整可见；拖拽条仍保留，关闭弹层后空条恢复。
@@ -887,46 +899,49 @@ const WINDOW_UI_SCRIPT = `(function () {
   function make() {
     if (!document.body) { setTimeout(make, 100); return; }
     if (document.getElementById('dsh-winctl')) return;
-    ctl = document.createElement('div');
-    ctl.id = 'dsh-winctl';
-    ctl.style.cssText =
-      'position:fixed;top:2px;right:8px;z-index:2147483646;display:flex;gap:4px;background:transparent';
-    var min = mk('dsh-win-min', '<svg width="13" height="13" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><rect x="0.7" y="5.05" width="10.6" height="1.9" fill="currentColor"/></svg>', '最小化');
-    var max = mk('dsh-win-max', '<svg width="13" height="13" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="10" height="10" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>', '最大化/还原');
-    var close = mk('dsh-win-close', '<svg width="13" height="13" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 1.5 L10.5 10.5 M10.5 1.5 L1.5 10.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>', '关闭');
-    min.addEventListener('mouseenter', function () { min.style.background = 'var(--dsw-alias-interactive-bg-hover,rgba(255,255,255,0.08))'; });
-    min.addEventListener('mouseleave', function () { min.style.background = 'transparent'; });
-    max.addEventListener('mouseenter', function () { max.style.background = 'var(--dsw-alias-interactive-bg-hover,rgba(255,255,255,0.08))'; });
-    max.addEventListener('mouseleave', function () { max.style.background = 'transparent'; });
-    close.addEventListener('mouseenter', function () {
-      close.style.background = '#e81123'; close.style.color = '#ffffff';
-    });
-    close.addEventListener('mouseleave', function () {
-      close.style.background = 'transparent'; close.style.color = 'var(--dsw-alias-label-primary,#e8eaed)';
-    });
-    ctl.appendChild(min); ctl.appendChild(max); ctl.appendChild(close);
-    document.body.appendChild(ctl);
-    // 页头上方 30px 空条（窗口边框向上延伸）：应用整体下移 30px，但页面内部
-    // 布局不变（与 web 端相对布局 1:1）；三键放在空条内、Session log 胶囊正上方。
+    // macOS：跳过自绘三键（系统红绿灯负责窗口控制）
+    if (!IS_MAC) {
+      ctl = document.createElement('div');
+      ctl.id = 'dsh-winctl';
+      ctl.style.cssText =
+        'position:fixed;top:2px;right:8px;z-index:2147483646;display:flex;gap:4px;background:transparent';
+      var min = mk('dsh-win-min', '<svg width="13" height="13" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><rect x="0.7" y="5.05" width="10.6" height="1.9" fill="currentColor"/></svg>', '最小化');
+      var max = mk('dsh-win-max', '<svg width="13" height="13" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="10" height="10" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>', '最大化/还原');
+      var close = mk('dsh-win-close', '<svg width="13" height="13" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 1.5 L10.5 10.5 M10.5 1.5 L1.5 10.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>', '关闭');
+      min.addEventListener('mouseenter', function () { min.style.background = 'var(--dsw-alias-interactive-bg-hover,rgba(255,255,255,0.08))'; });
+      min.addEventListener('mouseleave', function () { min.style.background = 'transparent'; });
+      max.addEventListener('mouseenter', function () { max.style.background = 'var(--dsw-alias-interactive-bg-hover,rgba(255,255,255,0.08))'; });
+      max.addEventListener('mouseleave', function () { max.style.background = 'transparent'; });
+      close.addEventListener('mouseenter', function () {
+        close.style.background = '#e81123'; close.style.color = '#ffffff';
+      });
+      close.addEventListener('mouseleave', function () {
+        close.style.background = 'transparent'; close.style.color = 'var(--dsw-alias-label-primary,#e8eaed)';
+      });
+      ctl.appendChild(min); ctl.appendChild(max); ctl.appendChild(close);
+      document.body.appendChild(ctl);
+    }
+    // 页头上方空条（窗口边框向上延伸）：应用整体下移 STRIP_H px，但页面内部
+    // 布局不变（与 web 端相对布局 1:1）；三键放在空条内（Windows/Linux）。
     if (!document.getElementById('dsh-topstrip-css')) {
       var st = document.createElement('style');
       st.id = 'dsh-topstrip-css';
       st.textContent =
         'html{overflow:hidden}' +
-        'body{padding-top:30px;background:var(--dsw-alias-bg-base,#151517)}' +
-        '#root{height:calc(100vh - 30px)}';
+        'body{padding-top:' + STRIP_H + 'px;background:var(--dsw-alias-bg-base,#151517)}' +
+        '#root{height:calc(100vh - ' + STRIP_H + 'px)}';
       document.head.appendChild(st);
     }
-    // 页面顶部的 30px 偏移必须内联 + !important 兜底：Web 端样式表（静态 CSS 或
+    // 页面顶部的 STRIP_H px 偏移必须内联 + !important 兜底：Web 端样式表（静态 CSS 或
     // 客户端模块后期注入的样式）可能覆盖 body/#root 规则，导致内容整体上移、
     // 页头（标题/ Session log 胶囊）顶部被空条压住。内联 !important 优先级高于
     // 一切普通样式表，唯一失效条件是被页面重新写 body/#root 的内联样式，因此
     // 每次布局同步时重施一次。
     function applyTopPadding() {
       try {
-        document.body.style.setProperty('padding-top', '30px', 'important');
+        document.body.style.setProperty('padding-top', STRIP_H + 'px', 'important');
         var root = document.getElementById('root');
-        if (root) root.style.setProperty('height', 'calc(100vh - 30px)', 'important');
+        if (root) root.style.setProperty('height', 'calc(100vh - ' + STRIP_H + 'px)', 'important');
       } catch (e) {}
     }
     applyTopPadding();
@@ -935,7 +950,7 @@ const WINDOW_UI_SCRIPT = `(function () {
       var ts = document.createElement('div');
       ts.id = 'dsh-topstrip';
       ts.style.cssText =
-        'position:fixed;top:0;left:0;right:0;height:30px;z-index:2147483644;' +
+        'position:fixed;top:0;left:0;right:0;height:' + STRIP_H + 'px;z-index:2147483644;' +
         'pointer-events:none;background:var(--dsw-alias-bg-base,#151517)';
       var tsSide = document.createElement('div');
       tsSide.id = 'dsh-topstrip-side';
@@ -951,7 +966,7 @@ const WINDOW_UI_SCRIPT = `(function () {
       var strip = document.createElement('div');
       strip.id = 'dsh-dragstrip';
       strip.style.cssText =
-        'position:fixed;top:0;left:0;right:160px;height:30px;z-index:2147483645;' +
+        'position:fixed;top:0;left:0;right:160px;height:' + STRIP_H + 'px;z-index:2147483645;' +
         '-webkit-app-region:drag;background:transparent';
       document.body.appendChild(strip);
     }
@@ -1046,6 +1061,9 @@ const WINDOW_UI_SCRIPT = `(function () {
 // ---------- 窗口 ----------
 
 function createWindow() {
+  // macOS：保留原生红绿灯（hiddenInset 半透明标题栏 + 左上交通灯），
+  // 页面顶部注入的自绘三键在 darwin 下跳过（见 WINDOW_UI_SCRIPT 的 platform 判断），
+  // 拖拽区仍由页面顶条提供；Windows / Linux 维持无边框 + 自绘三键。
   const win = new BrowserWindow({
     width: 1500,
     height: 950,
@@ -1053,6 +1071,11 @@ function createWindow() {
     minHeight: 600,
     title: 'DeepSeek Harness',
     frame: false, // 无边框：窗口控制由内置按钮承担（注入于页面顶部）
+    ...(process.platform === 'darwin' ? {
+      frame: true,
+      titleBarStyle: 'hiddenInset',
+      trafficLightPosition: { x: 12, y: 12 }
+    } : {}),
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
@@ -1203,7 +1226,8 @@ function createWindow() {
 }
 
 // ---------- 应用生命周期 ----------
-app.setAppUserModelId('com.deepseek.harness.desktop');
+// Windows 专属 API（macOS / Linux 下为 no-op，仍加平台保护）
+if (process.platform === 'win32') app.setAppUserModelId('com.deepseek.harness.desktop');
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {

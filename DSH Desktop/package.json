@@ -1,0 +1,21 @@
+{
+  "name": "dsh-desktop-builder",
+  "private": true,
+  "version": "1.0.0",
+  "description": "DSH Desktop 三平台（Windows / Linux / macOS）打包工程：electron-builder + 内置 Node/dsh 运行时",
+  "scripts": {
+    "fetch-runtime": "node scripts/fetch-runtime.mjs",
+    "build:win": "node scripts/fetch-runtime.mjs && electron-builder --win",
+    "build:linux": "node scripts/fetch-runtime.mjs && electron-builder --linux",
+    "build:mac": "node scripts/fetch-runtime.mjs && electron-builder --mac",
+    "build": "node scripts/fetch-runtime.mjs && electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^26.15.3"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true,
+    "electron-winstaller@5.4.0": true
+  }
+}

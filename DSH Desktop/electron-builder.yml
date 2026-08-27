@@ -1,0 +1,54 @@
+# DSH Desktop 三平台打包配置（electron-builder）
+# app 目录 = shell\（main.js + package.json + assets）；运行时 = runtime\（fetch-runtime.mjs 生成）
+appId: com.deepseek.harness.desktop
+productName: DeepSeek Harness
+directories:
+  app: shell
+  output: release
+  buildResources: build
+files:
+  - main.js
+  - package.json
+  - assets/**
+extraResources:
+  # 默认复制到应用 resources 根目录（不带 to 或 to: "."），
+  # 与 main.js bundledRuntime() 的 resources\node + resources\dsh 约定一致
+  - from: runtime
+    to: "."
+    filter:
+      - "**/*"
+asar: true
+win:
+  target:
+    - nsis
+    - portable
+  icon: build/icon.png
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: DeepSeek Harness
+  uninstallDisplayName: DeepSeek Harness
+  deleteAppDataOnUninstall: false
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.developer-tools
+  icon: build/icon.png
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  extendInfo:
+    NSHighResolutionCapable: true
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Utility
+  icon: build/icon.png
+  maintainer: DeepSeek Harness <harness@deepseek.com>
+  synopsis: DeepSeek Harness Desktop
+  description: Local desktop client for DeepSeek Harness (dsh) with bundled Node runtime and web UI.
+publish:
+  provider: github
+  owner: ZXCWT666
+  repo: deepseek-harness-desktop

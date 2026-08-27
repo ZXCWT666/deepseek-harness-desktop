@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "devDependencies": {
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "pngjs": "^7.0.0",
+    "puppeteer-core": "^25.9.0"
   }
 }

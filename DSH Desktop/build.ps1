@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 # DSH Desktop 构建脚本
 # 从 shell\ 源码重建 app.asar -> 刷新 DeepSeekHarness-<版本>\ 包
 # -> 写入 exe 版本号 -> 校验 -> （可选）重新压缩 zip
@@ -35,13 +35,17 @@ $asarOut = "$root\artifacts\app.$ver.asar"
 if ($LASTEXITCODE -ne 0) { throw "pack-asar 失败 (exit $LASTEXITCODE)" }
 Write-Host "==> app.asar 已生成: $asarOut" -ForegroundColor Green
 
-# --- 2) 刷新 DeepSeekHarness-<版本>\ 包（缺失时从上一版包目录复制模板） ---
+# --- 2) 刷新 DeepSeekHarness-<版本>\ 包（缺失时从已安装应用目录复制模板） ---
 $appDir = "$root\DeepSeekHarness-$ver"
 if (-not (Test-Path "$appDir\resources\app.asar")) {
   $template = Get-ChildItem $root -Directory -Filter "DeepSeekHarness-*" |
     Sort-Object Name -Descending | Select-Object -First 1
-  if (-not $template) { throw "未找到 DeepSeekHarness-* 包模板，请先复制一份已安装的 DeepSeek Harness 应用目录" }
-  Write-Host "==> 从模板复制: $($template.Name) -> $appDir" -ForegroundColor Yellow
+  if (-not $template) {
+    $installed = "$env:LOCALAPPDATA\Programs\DeepSeek Harness"
+    if (Test-Path "$installed\DeepSeek Harness.exe") { $template = Get-Item $installed }
+  }
+  if (-not $template) { throw "未找到包模板：请先安装一份 DeepSeek Harness（或复制其应用目录到 $root 下名为 DeepSeekHarness-<版本>）" }
+  Write-Host "==> 从模板复制: $($template.FullName) -> $appDir" -ForegroundColor Yellow
   Copy-Item $template.FullName $appDir -Recurse -Force
 }
 if (-not (Test-Path "$appDir\resources\app.asar")) {

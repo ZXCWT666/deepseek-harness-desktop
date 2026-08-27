@@ -1,0 +1,67 @@
+name: Build DSH Desktop (Windows / Linux / macOS)
+
+on:
+  workflow_dispatch: {}
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    name: ${{ matrix.os }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            arch: x64
+          - os: ubuntu-latest
+            arch: x64
+          - os: macos-latest
+            arch: arm64
+          - os: macos-13
+            arch: x64
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install build deps
+        working-directory: DSH Desktop
+        run: npm install --no-audit --no-fund
+
+      - name: Fetch bundled runtime (Node + dsh, native per platform)
+        working-directory: DSH Desktop
+        run: node scripts/fetch-runtime.mjs
+
+      - name: Build packages
+        working-directory: DSH Desktop
+        run: npx electron-builder --publish never
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsh-desktop-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            DSH Desktop/release/*.exe
+            DSH Desktop/release/*.AppImage
+            DSH Desktop/release/*.deb
+            DSH Desktop/release/*.dmg
+            DSH Desktop/release/*.zip
+            DSH Desktop/release/latest*.yml
+          if-no-files-found: warn
+
+      # tag 推送触发时，把三平台安装包挂到同名 GitHub Release（由发布脚本创建）上
+      - name: Attach installers to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: DSH Desktop
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          for f in release/*.exe release/*.AppImage release/*.deb release/*.dmg; do
+            [ -f "$f" ] && gh release upload "$TAG" "$f" --clobber || true
+          done
+        shell: bash

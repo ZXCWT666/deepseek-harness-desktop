@@ -16,9 +16,15 @@ docs/.chrome-tmp*/
 DSH Desktop/artifacts/
 DSH Desktop/DeepSeekHarness-*/
 DSH Desktop/*.zip
+DSH Desktop/runtime/
+DSH Desktop/release/
+DSH Desktop/node_modules/
 
 # OS / editor
 Thumbs.db
 .DS_Store
 .idea/
 .vscode/
+
+# balance-status plugin moved to its own repository
+dsh-balance-status/

@@ -41,29 +41,25 @@ jobs:
           ./release/*.AppImage --appimage-extract >/dev/null 2>&1
           APP_BIN="$PWD/squashfs-root/AppRun"
           echo "app bin: $APP_BIN"
-          ls -la squashfs-root/ | head -8
           export ELECTRON_DISABLE_SANDBOX=1
-          export DSH_SMOKE_TEST=1
-          export DSH_SMOKE_ANY=1
-          export DSH_SMOKE_OUT="$PWD/release/linux-smoke-page.png"
           export DSH_DESKTOP_URL="http://127.0.0.1:3090/"
           export DSH_DESKTOP_SERVER_PORT="3090"
-          Xvfb :99 -screen 0 1400x900x24 &
+          # 不用冒烟退出模式：正常启动，等服务+GUI 渲染完成后截屏，再杀进程
+          Xvfb :99 -screen 0 1600x1000x24 &
           export DISPLAY=:99
           sleep 2
           "$APP_BIN" > linux-app.log 2>&1 &
           APP_PID=$!
-          # 等服务起来后截全屏
           for i in $(seq 1 60); do
             if curl -s -o /dev/null -m 2 http://127.0.0.1:3090/; then break; fi
             sleep 2
           done
-          sleep 20
+          sleep 35
           import -window root release/linux-desktop.png
           kill $APP_PID 2>/dev/null || true
           sleep 3
           ls -la release/*.png || true
-          tail -5 linux-app.log || true
+          tail -8 linux-app.log || true
 
       - uses: actions/upload-artifact@v4
         with:
@@ -96,9 +92,6 @@ jobs:
           APP_BIN="$PWD/release/mac-arm64/DeepSeek Harness.app/Contents/MacOS/DeepSeek Harness"
           ls release/
           echo "app bin: $APP_BIN"
-          export DSH_SMOKE_TEST=1
-          export DSH_SMOKE_ANY=1
-          export DSH_SMOKE_OUT="$PWD/release/mac-smoke-page.png"
           export DSH_DESKTOP_URL="http://127.0.0.1:3090/"
           export DSH_DESKTOP_SERVER_PORT="3090"
           "$APP_BIN" > mac-app.log 2>&1 &
@@ -107,12 +100,12 @@ jobs:
             if curl -s -o /dev/null -m 2 http://127.0.0.1:3090/; then break; fi
             sleep 2
           done
-          sleep 20
+          sleep 35
           screencapture -x release/macos-desktop.png
           kill $APP_PID 2>/dev/null || true
           sleep 3
           ls -la release/*.png || true
-          tail -5 mac-app.log || true
+          tail -8 mac-app.log || true
 
       - uses: actions/upload-artifact@v4
         with:

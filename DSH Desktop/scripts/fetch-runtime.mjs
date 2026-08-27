@@ -60,7 +60,8 @@ async function extract(archive, destDir) {
 }
 
 // ---------- 1) Node 运行时 ----------
-const nodeKey = `${platform}-${arch}`;
+// nodejs.org 归档命名：Windows 用 win-x64（注意不是 win32-x64），Linux/mac 用 linux-x64 / darwin-x64 / darwin-arm64
+const nodeKey = platform === "win32" ? `win-${arch}` : `${platform}-${arch}`;
 const ext = platform === "win32" ? "zip" : "tar.xz";
 const nodeUrl = `https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-${nodeKey}.${ext}`;
 console.log(`==> Node ${NODE_VERSION} (${nodeKey})`);

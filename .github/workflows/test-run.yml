@@ -37,10 +37,11 @@ jobs:
       - name: Launch app under Xvfb and screenshot
         working-directory: DSH Desktop
         run: |
-          # AppImage 无 FUSE 环境：解包后直接运行
+          # AppImage 无 FUSE 环境：解包后直接运行（入口 = squashfs-root/AppRun）
           ./release/*.AppImage --appimage-extract >/dev/null 2>&1
-          APP_BIN=$(find squashfs-root -name "DeepSeek Harness" -type f | head -1)
+          APP_BIN="$PWD/squashfs-root/AppRun"
           echo "app bin: $APP_BIN"
+          ls -la squashfs-root/ | head -8
           export ELECTRON_DISABLE_SANDBOX=1
           export DSH_SMOKE_TEST=1
           export DSH_SMOKE_ANY=1

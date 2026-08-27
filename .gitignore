@@ -28,3 +28,6 @@ Thumbs.db
 
 # balance-status plugin moved to its own repository
 dsh-balance-status/
+
+# runtime test screenshots
+screenshots/

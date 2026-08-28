@@ -102,6 +102,8 @@ jobs:
           done
           sleep 35
           screencapture -x release/macos-desktop.png
+          # 裁剪 Dock 区域（确认应用图标）
+          sips -c 120 1024 --cropOffset 648 0 release/macos-desktop.png --out release/macos-dock.png >/dev/null 2>&1 || true
           kill $APP_PID 2>/dev/null || true
           sleep 3
           ls -la release/*.png || true

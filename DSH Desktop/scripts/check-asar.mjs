@@ -1,6 +1,10 @@
 import fs from "node:fs";
+import path from "node:path";
 // Usage: node check-asar.mjs [path-to-app.asar]
-const asar = process.argv[2] || "C:/Users/USER/AppData/Local/Programs/DeepSeek Harness/resources/app.asar";
+const defaultAsar = () => process.env.LOCALAPPDATA
+  ? path.join(process.env.LOCALAPPDATA, "Programs", "DeepSeek Harness", "resources", "app.asar")
+  : "";
+const asar = process.argv[2] || defaultAsar();
 const b = fs.readFileSync(asar);
 const L = b.readUInt32LE(12);
 const hdr = JSON.parse(b.subarray(16, 16 + L).toString());

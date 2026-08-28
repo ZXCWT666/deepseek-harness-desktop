@@ -1,5 +1,8 @@
 import fs from "node:fs";
-const b = fs.readFileSync("C:/Users/USER/AppData/Local/Programs/DeepSeek Harness/resources/app.asar");
+import path from "node:path";
+const b = fs.readFileSync(process.env.LOCALAPPDATA
+  ? path.join(process.env.LOCALAPPDATA, "Programs", "DeepSeek Harness", "resources", "app.asar")
+  : "");
 const L = b.readUInt32LE(12);
 const h = JSON.parse(b.subarray(16, 16 + L).toString());
 const e = h.files["main.js"];

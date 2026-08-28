@@ -2,7 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const asar = process.argv[3] || "C:/Users/USER/AppData/Local/Programs/DeepSeek Harness/resources/app.asar";
+const asar = process.argv[3] || (process.env.LOCALAPPDATA
+  ? path.join(process.env.LOCALAPPDATA, "Programs", "DeepSeek Harness", "resources", "app.asar")
+  : "");
 const buf = fs.readFileSync(asar);
 const size = JSON.parse(buf.readUInt32LE(12));
 const hdr = JSON.parse(buf.subarray(16, 16 + size).toString());

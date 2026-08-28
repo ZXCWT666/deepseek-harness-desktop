@@ -1,7 +1,10 @@
 import fs from "node:fs";
+import path from "node:path";
 import { execFileSync } from "node:child_process";
 // verify the installed asar script syntax
-const asar = "C:/Users/USER/AppData/Local/Programs/DeepSeek Harness/resources/app.asar";
+const asar = process.env.LOCALAPPDATA
+  ? path.join(process.env.LOCALAPPDATA, "Programs", "DeepSeek Harness", "resources", "app.asar")
+  : "";
 const b = fs.readFileSync(asar);
 const L = b.readUInt32LE(12);
 const h = JSON.parse(b.subarray(16, 16 + L).toString());

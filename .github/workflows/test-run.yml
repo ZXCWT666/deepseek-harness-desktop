@@ -114,6 +114,6 @@ jobs:
           name: macos-run-screenshots
           path: |
             DSH Desktop/release/macos-desktop.png
-            DSH Desktop/release/mac-smoke-page.png
+            DSH Desktop/release/macos-dock.png
             DSH Desktop/mac-app.log
           if-no-files-found: error

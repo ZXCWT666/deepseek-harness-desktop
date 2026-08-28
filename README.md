@@ -22,6 +22,18 @@
 - Linux 开机自启走 XDG autostart；三平台托盘、无边框窗口体验一致；
 - 推送 `v*` tag 后 CI 自动构建四矩阵（win / linux / mac-arm64 / mac-x64）并挂到 GitHub Release。
 
+## 下载安装
+
+从 [**Releases**](https://github.com/ZXCWT666/deepseek-harness-desktop/releases) 下载对应平台的安装包（当前 **v1.1.1**）：
+
+| 平台 | 推荐 | 备选 |
+| --- | --- | --- |
+| Windows | `DeepSeek.Harness.Setup.*.exe`（NSIS 安装） | `DeepSeek.Harness.*.exe`（便携）· `*.zip` |
+| Linux | `*.AppImage`（chmod +x 后运行） | `*_amd64.deb` |
+| macOS | `*-arm64.dmg`（Apple Silicon） | `*-x64.dmg`（Intel） |
+
+安装后双击运行，自动在 `http://127.0.0.1:3080` 拉起工作台。
+
 ### 2.完全自包含：免安装环境，双击即用
 
 - **内置 Node.js 运行时 + dsh 依赖树**随包分发（原生模块按平台安装），无需本机安装 Node / dsh / Python 等任何环境；
@@ -83,16 +95,4 @@
 | ![Agent 档位菜单](docs/screenshot-reasoning-levels.png) | ![设置页](docs/screenshot-settings.png) |
 
 ---
-
-## 下载安装
-
-从 [**Releases**](https://github.com/ZXCWT666/deepseek-harness-desktop/releases) 下载对应平台的安装包（当前 **v1.1.1**）：
-
-| 平台 | 推荐 | 备选 |
-| --- | --- | --- |
-| Windows | `DeepSeek.Harness.Setup.*.exe`（NSIS 安装） | `DeepSeek.Harness.*.exe`（便携）· `*.zip` |
-| Linux | `*.AppImage`（chmod +x 后运行） | `*_amd64.deb` |
-| macOS | `*-arm64.dmg`（Apple Silicon） | `*-x64.dmg`（Intel） |
-
-安装后双击运行，自动在 `http://127.0.0.1:3080` 拉起工作台。
 [MIT](LICENSE)

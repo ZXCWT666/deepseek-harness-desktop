@@ -86,7 +86,7 @@
 
 ## 下载安装
 
-从 [**Releases**](https://github.com/ZXCWT666/deepseek-harness-desktop/releases) 下载对应平台的安装包（当前 **v1.1.0**）：
+从 [**Releases**](https://github.com/ZXCWT666/deepseek-harness-desktop/releases) 下载对应平台的安装包（当前 **v1.1.1**）：
 
 | 平台 | 推荐 | 备选 |
 | --- | --- | --- |

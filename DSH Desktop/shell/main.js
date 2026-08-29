@@ -886,7 +886,10 @@ const WINDOW_UI_SCRIPT = `(function () {
       var el = els[i];
       if (el === ctl || el.contains(ctl)) continue;
       var r = el.getBoundingClientRect();
-      if (r.width > 300 && r.height > 200) { hide = true; break; }
+      // 只对覆盖视口 ≥90% 的全屏弹层（图片查看器等）隐藏三键与空条：
+      // 居中/侧边面板类 dialog（如 800×800 的设置面板，顶边 y=75、自带关闭
+      // 按钮远离空条）不应触发隐藏，否则设置页里窗口三键会"消失"。
+      if (r.width >= window.innerWidth * 0.9 && r.height >= window.innerHeight * 0.9) { hide = true; break; }
     }
     if (ctl) ctl.style.display = hide ? 'none' : 'flex';
     // 全屏弹层（图片查看器等）打开时同步隐藏顶部空条背景：空条是桌面端
@@ -1120,7 +1123,8 @@ function createWindow() {
 
   // 等待页“立即重试”按钮：app://retry → 立即触发检查与启动；
   // 设置卡片开关：app://dshsetting/<key>/<0|1> → 应用设置；
-  // 内置窗口按钮：app://win/<min|max|close>
+  // 内置窗口按钮：app://win/<min|max|close>；
+  // 智能侧边面板：app://dshpanel/<open|reveal>/<enc-path> → 系统打开/定位文件
   win.webContents.on('will-navigate', (event, url) => {
     if (url.startsWith('app://retry')) {
       event.preventDefault();
@@ -1143,6 +1147,20 @@ function createWindow() {
       } else {
         win.close(); // 尊重“关闭时最小化到托盘”设置
       }
+      return;
+    }
+    // 智能侧边面板：app://dshpanel/open/<enc-path> → 系统默认应用打开
+    // （.html 走默认浏览器）；app://dshpanel/reveal/<enc-path> → 资源管理器定位
+    const mPanel = /^app:\/\/dshpanel\/(open|reveal)\/(.+)$/.exec(url);
+    if (mPanel) {
+      event.preventDefault();
+      let target = '';
+      try { target = decodeURIComponent(mPanel[2]); } catch { /* ignore */ }
+      if (!target) return;
+      try {
+        if (mPanel[1] === 'open') shell.openPath(target);
+        else shell.showItemInFolder(target);
+      } catch { /* ignore */ }
     }
   });
 

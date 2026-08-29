@@ -964,12 +964,13 @@ const WINDOW_UI_SCRIPT = `(function () {
       ts.appendChild(tsSide);
       document.body.appendChild(ts);
     }
-    // 全宽顶部拖拽条（透明、避开三键区域）：空条内任意位置都可推动窗口
+    // 全宽顶部拖拽条（透明、z 低于三键）：空条内任意位置（含三键周边）都可
+    // 推动窗口，无死区；三键层级更高（2147483646），按钮本体仍可正常点击。
     if (!document.getElementById('dsh-dragstrip')) {
       var strip = document.createElement('div');
       strip.id = 'dsh-dragstrip';
       strip.style.cssText =
-        'position:fixed;top:0;left:0;right:160px;height:' + STRIP_H + 'px;z-index:2147483645;' +
+        'position:fixed;top:0;left:0;right:0;height:' + STRIP_H + 'px;z-index:2147483645;' +
         '-webkit-app-region:drag;background:transparent';
       document.body.appendChild(strip);
     }

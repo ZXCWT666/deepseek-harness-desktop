@@ -1,7 +1,7 @@
 {
     "name":  "dsh-desktop",
     "productName":  "DeepSeek Harness",
-    "version":  "1.1.1",
+    "version":  "1.1.2",
     "description":  "DeepSeek Harness 桌面客户端（Windows）：完全自包含——内置 Node.js 运行时与 DSH 服务，启动即用，无需本机安装 Node/dsh。含托盘、开机自启、内置窗口控制。",
     "main":  "main.js",
     "author":  "DeepSeek Harness",

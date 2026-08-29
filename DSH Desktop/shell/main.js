@@ -36,7 +36,7 @@
  *   DSH_SMOKE_OUT                 冒烟测试截图输出路径（默认 smoke-test.png）
  */
 
-const { app, BrowserWindow, dialog, shell, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, dialog, shell, Tray, Menu, nativeImage, screen, ipcMain } = require('electron');
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const http = require('http');
@@ -65,6 +65,37 @@ try {
 
 // ---------- 状态 ----------
 let mainWindow = null;
+// 手动拖拽状态：绕开系统 -webkit-app-region 异步拖拽的启动延迟，
+// 页面 mousedown/mousemove 经 preload IPC 通知主进程，按光标绝对位置移动窗口。
+let dragState = null;
+function handleDrag(op, fromWebContents) {
+  // 允许 start/end 在任何状态下处理；move 仅在拖拽会话中处理。
+  if (op !== 'start' && op !== 'end' && !dragState) return;
+  const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
+  if (!win) return;
+  try {
+    if (op === 'start') {
+      if (win.isMaximized()) { dragState = null; return; }
+      const c = screen.getCursorScreenPoint();
+      const b = win.getBounds();
+      dragState = { startX: c.x, startY: c.y, winX: b.x, winY: b.y };
+    } else if (op === 'move') {
+      if (!dragState) return;
+      const c = screen.getCursorScreenPoint();
+      win.setPosition(
+        dragState.winX + (c.x - dragState.startX),
+        dragState.winY + (c.y - dragState.startY)
+      );
+    } else {
+      dragState = null;
+    }
+  } catch (e) {}
+}
+if (typeof ipcMain !== 'undefined') {
+  try {
+    ipcMain.on('dsh-drag', (event, op) => { handleDrag(op); });
+  } catch (e) {}
+}
 let serverProc = null;         // 由桌面端启动的服务进程（原生命令，需 taskkill /T 清理）
 let serverStartedAt = 0;       // 上次由桌面端拉起服务的时间
 let serverStartedByUs = false;
@@ -862,6 +893,9 @@ const WINDOW_UI_SCRIPT = `(function () {
   // 空条高度给红绿灯让位（44px），Windows/Linux 保持 30px + 自绘三键。
   var IS_MAC = /Mac|darwin/i.test(navigator.platform || '');
   var STRIP_H = IS_MAC ? 44 : 30;
+  // 拖拽区高度：比空条更高（44px，仍在页头/胶囊之上），扩大抓取面，减小拖拽启动时
+  // 因抓在非拖拽区/边缘而产生的"延迟"体感；透明不可见，不影响页面与视觉。
+  var DRAG_H = IS_MAC ? 44 : 44;
   var ctl = null;
   function mk(id, label, title) {
     var b = document.createElement('button');
@@ -871,7 +905,7 @@ const WINDOW_UI_SCRIPT = `(function () {
     b.style.cssText =
       'width:36px;height:28px;border:none;border-radius:7px;background:transparent;' +
       'color:var(--dsw-alias-label-primary,#e8eaed);padding:0;cursor:pointer;display:inline-flex;' +
-      'align-items:center;justify-content:center';
+      'align-items:center;justify-content:center;-webkit-app-region:no-drag';
     b.addEventListener('click', function () {
       location.href = 'app://win/' + id.replace('dsh-win-', '');
     });
@@ -907,7 +941,8 @@ const WINDOW_UI_SCRIPT = `(function () {
       ctl = document.createElement('div');
       ctl.id = 'dsh-winctl';
       ctl.style.cssText =
-        'position:fixed;top:2px;right:8px;z-index:2147483646;display:flex;gap:4px;background:transparent';
+        'position:fixed;top:2px;right:8px;z-index:2147483646;display:flex;gap:4px;background:transparent;' +
+        '-webkit-app-region:no-drag';
       var min = mk('dsh-win-min', '<svg width="13" height="13" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><rect x="0.7" y="5.05" width="10.6" height="1.9" fill="currentColor"/></svg>', '最小化');
       var max = mk('dsh-win-max', '<svg width="13" height="13" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><rect x="1" y="1" width="10" height="10" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>', '最大化/还原');
       var close = mk('dsh-win-close', '<svg width="13" height="13" viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 1.5 L10.5 10.5 M10.5 1.5 L1.5 10.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>', '关闭');
@@ -960,20 +995,47 @@ const WINDOW_UI_SCRIPT = `(function () {
       tsSide.style.cssText =
         'position:absolute;top:0;left:0;bottom:0;width:280px;box-sizing:border-box;' +
         'background:var(--dsw-specific-sidebar-fill,var(--dsw-alias-bg-base,#151517));' +
-        'border-right:1px solid var(--dsw-alias-border-l2,rgba(0,0,0,.08))';
+        // 延伸原生 UI 分割线：sidebarCol 的 border-right:1px solid var(--dsw-alias-border-l1)
+        'border-right:1px solid var(--dsw-alias-border-l1,rgba(0,0,0,.08))';
       ts.appendChild(tsSide);
       document.body.appendChild(ts);
     }
-    // 全宽顶部拖拽条（透明、z 低于三键）：空条内任意位置（含三键周边）都可
-    // 推动窗口，无死区；三键层级更高（2147483646），按钮本体仍可正常点击。
-    if (!document.getElementById('dsh-dragstrip')) {
-      var strip = document.createElement('div');
-      strip.id = 'dsh-dragstrip';
-      strip.style.cssText =
-        'position:fixed;top:0;left:0;right:0;height:' + STRIP_H + 'px;z-index:2147483645;' +
-        '-webkit-app-region:drag;background:transparent';
-      document.body.appendChild(strip);
+    // 拖拽条：分左右两段，中间给侧边栏分隔线（Resizer 手柄）留出缺口 ——
+    // 否则拖动分隔线调整边栏宽度时，顶段被拖窗逻辑吞掉（表现为"延迟/不对"）。
+    // 几何由 syncStripSide() 每次布局同步后校正；找不到侧边栏时退化为全宽。
+    if (!document.getElementById('dsh-dragstrip-a')) {
+      var stripA = document.createElement('div');
+      stripA.id = 'dsh-dragstrip-a';
+      stripA.style.cssText =
+        'position:fixed;top:0;left:0;width:260px;height:' + DRAG_H + 'px;z-index:2147483645;' +
+        'background:transparent;cursor:default;-webkit-app-region:drag';
+      document.body.appendChild(stripA);
+      var stripB = document.createElement('div');
+      stripB.id = 'dsh-dragstrip-b';
+      stripB.style.cssText =
+        'position:fixed;top:0;left:276px;right:136px;height:' + DRAG_H + 'px;z-index:2147483645;' +
+        'background:transparent;cursor:default;-webkit-app-region:drag';
+      document.body.appendChild(stripB);
     }
+    // 空条线段高速跟随：拖 Resizer 时 pointermove 逐帧同步（不走 120ms 防抖），
+    // 否则快速拖拽下空条线段比原生线慢半拍（"线上面有延迟"）。
+    // （窗口拖拽走系统原生 caption 路径 —— 保证 Win 贴靠生效；这里只同步几何。）
+    try {
+      var stripSyncRaf = false;
+      var stripSyncMove = function () {
+        if (stripSyncRaf) return;
+        stripSyncRaf = true;
+        window.requestAnimationFrame(function () {
+          stripSyncRaf = false;
+          syncStripSide();
+        });
+      };
+      // 冒泡阶段（非捕获！）：先让应用的 Resizer 处理器更新宽度，再读最新值同步，
+      // 否则读到上一帧旧值 → 空条线段每两步才追一次（"紧贴但不能并列"）。
+      document.addEventListener('pointermove', stripSyncMove);
+      document.addEventListener('pointerdown', stripSyncMove);
+      document.addEventListener('pointerup', stripSyncMove);
+    } catch (e) {}
     // 放置并持续校正三键位置：三键固定在空条内（top:2px），水平中心对齐
     // Session log 胶囊中心；不推挤页头任何元素。找不到胶囊时靠右上角。
     // React 可能重渲染头部行，因此每次布局同步都重施样式并重算位置。
@@ -982,13 +1044,30 @@ const WINDOW_UI_SCRIPT = `(function () {
     // 每次同步按实际侧边栏宽度校正（含折叠为图标栏的情况）。
     function syncStripSide() {
       try {
-        var col = document.querySelector('[class*="sidebarCol"]');
         var side = document.getElementById('dsh-topstrip-side');
-        if (!col || !side) return;
-        var w = Math.round(col.getBoundingClientRect().width);
+        if (!side) return;
+        // 从空条正下方取样"可见"侧边栏（querySelector 取首个匹配可能是隐藏/其它
+        // 视图的侧边栏，导致延伸段宽度与真实分割线位置错位）。
+        var probe = document.elementFromPoint(120, 60);
+        var col = null;
+        if (probe && probe.closest) col = probe.closest('[class*="sidebarCol"]');
+        if (!col) col = document.querySelector('[class*="sidebarCol"]');
+        if (!col) return;
+        var w = col.getBoundingClientRect().width; // 原始小数宽度：亚像素对齐原生线
         if (!(w > 30)) w = 280;
         var bw = w + 'px';
         if (side.style.width !== bw) side.style.width = bw;
+        // 拖拽条左右段跟随分隔线位置（中间给 Resizer 留 10px 缺口）
+        var a = document.getElementById('dsh-dragstrip-a');
+        var b = document.getElementById('dsh-dragstrip-b');
+        if (a && b) {
+          var aw = Math.max(0, w - 6);
+          var nb = w + 4;
+          var aW = aw + 'px';
+          var bL = nb + 'px';
+          if (a.style.width !== aW) a.style.width = aW;
+          if (b.style.left !== bL) b.style.left = bL;
+        }
       } catch (e) {}
     }
     // 三键定位：固定在右上角（top:2px, right:16px），不再跟随 Session log 胶囊。
@@ -1016,7 +1095,15 @@ const WINDOW_UI_SCRIPT = `(function () {
       }, 120);
     }
     try {
-      new MutationObserver(scheduleWinSync).observe(document.body, { childList: true, subtree: true });
+      // 监听属性级样式变化：拖动分隔线（Resizer）实时改写 sidebarCol 的 inline
+      // style —— 空条里的分段线须即时跟随（此前仅 1.5s 轮询，表现为"线的上面
+      // 那一段有延迟"）。
+      new MutationObserver(scheduleWinSync).observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'width']
+      });
     } catch (e) {}
     // 窗口贴靠 / 拖动 / 缩放会改变页面布局但不产生 DOM 变更，MutationObserver
     // 无法感知：监听窗口 resize 事件重排三键（防抖后取最终值，避免贴靠中途的
@@ -1045,7 +1132,7 @@ const WINDOW_UI_SCRIPT = `(function () {
       if (!ctl) return;
       placeWinCtl();
     }, 1500);
-    // 侧边栏品牌 logo 作为拖动把手（不遮挡任何交互元素）
+    // 侧边栏品牌 logo 作为拖动把手（系统原生 caption 拖拽，与顶条一致）
     try {
       var brand = document.querySelector('[class*="brandIdentity"]');
       if (brand) brand.style.webkitAppRegion = 'drag';
@@ -1086,9 +1173,27 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
-      webSecurity: true
+      webSecurity: true,
+      preload: path.join(__dirname, 'preload.js')
     }
   });
+
+  // Windows 11 原生圆角窗口：DwmSetWindowAttribute(DWMWA_WINDOW_CORNER_PREFERENCE=33,
+  // DWMWCP_ROUND=2)。借助运行时自带的 koffi（FFI）调用 dwmapi；Win10/不支持时静默跳过。
+  try {
+    if (process.platform === 'win32') {
+      const koffiPath = path.join(path.dirname(process.execPath), 'resources', 'dsh', 'node_modules', 'koffi');
+      if (fs.existsSync(koffiPath)) {
+        const koffi = require(koffiPath);
+        const dwm = koffi.load('dwmapi.dll');
+        const setAttr = dwm.func('DwmSetWindowAttribute', 'int', ['uint64', 'int', 'void *', 'int']);
+        const handle = win.getNativeWindowHandle();
+        const hwnd = handle.length >= 8 ? handle.readBigUInt64LE(0) : BigInt(handle.readUInt32LE(0));
+        const pref = Buffer.from([2, 0, 0, 0]);
+        setAttr(hwnd, 33, pref, 4);
+      }
+    }
+  } catch (e) { /* 静默：保持直角 */ }
 
   win.on('maximize', () => pushWinState());
   win.on('unmaximize', () => pushWinState());

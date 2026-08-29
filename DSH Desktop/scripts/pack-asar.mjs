@@ -21,6 +21,7 @@ const order = [
   "assets/brand-name.svg",
   "assets/tray.png",
   "main.js",
+  "preload.js",
   "package.json",
 ];
 

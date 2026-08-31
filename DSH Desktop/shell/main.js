@@ -9,14 +9,17 @@
  *   与浏览器中打开的 Web 端完全一致。本地等待页仅在服务不可用时短暂显示，
  *   不参与 Web 页面本身。
  *
- * 服务策略（v1.3.0，纯客户端 + 静默自愈）：
+ * 服务策略（v1.1.3，纯客户端 + 静默自愈）：
  *   - 桌面端不“拥有”3080 端口：服务可能由 Harness 环境 / 用户 / 桌面端任一
  *     方提供，可能随时被外部回收（实测 dsh web 进程会被外部以
  *     exit code 4294967295/-1 强制终止，随后由外部另起一个接替）。
- *   - 后台检查器（每 1.5s）只做三件事：
- *       1) 服务可达 → 若窗口停留在等待页则自动加载正式页面；
- *       2) 服务不可达 & 没有任何服务进程 → 按递增退避（3s→60s 封顶）静默重启；
- *       3) 自己的进程被外部终止 → 不与之对抗，改用现有服务或继续退避重试。
+ *   - 后台检查器（每 1.5s）只做几件事：
+ *       1) 服务可达 → 若窗口停留在等待页/加载失败则自动加载正式页面；
+ *       2) 已成功加载过主页面后，服务中断期间【不切走页面】——Web 前端自带
+ *          指数退避重连，恢复后自动续上，不再表现为“应用自动重启”；
+ *       3) 服务不可达 & 没有任何服务进程 → 先探测 3080 端口：被外部占用则
+ *          只观察不重复拉起；空闲才按递增退避（3s→60s 封顶）静默重启；
+ *       4) 自己的进程被外部终止 → 不与之对抗，改用现有服务或继续退避重试。
  *   - 服务恢复后自动重新加载页面；整个过程不弹“服务已停止”类阻塞对话框
  *     （仅当 Node.js / DeepSeek Harness 安装都找不到时提示一次）。
  *   - 退出时只清理“由桌面端启动且仍在运行”的进程；先于桌面端运行的服务不受影响。
@@ -40,6 +43,7 @@ const { app, BrowserWindow, dialog, shell, Tray, Menu, nativeImage, screen, ipcM
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const http = require('http');
+const net = require('net');
 const os = require('os');
 const path = require('path');
 
@@ -56,6 +60,11 @@ const CHECK_INTERVAL_MS = 1500;
 const BACKOFF_INITIAL_MS = 3000;
 const BACKOFF_MAX_MS = 60000;
 const LOADING_TIMEOUT_MS = 30000;
+const PING_TIMEOUT_MS = 2500;    // ping 超时放宽：服务启动高峰期（插件树加载）响应慢，
+                                 // 800ms 误判会触发无谓自启（EADDRINUSE 循环的诱因之一）
+const PROBE_TIMEOUT_MS = 500;    // 自启前 TCP 端口探测超时
+const LISTEN_GRACE_MS = 45000;   // 自家服务进程从拉起算起的监听宽限期（本机带插件 profile
+                                 // 冷启动可达 30s+，过短会在慢启动时误杀自家进程造成反复重启）
 let appOrigin = '';
 try {
   appOrigin = new URL(APP_URL).origin;
@@ -110,6 +119,8 @@ let lastErr = '';
 let tray = null;               // 系统托盘
 let quitting = false;          // 真正退出（关闭时最小化到托盘开关生效时区分）
 let settings = { autostart: false, closeToTray: true };
+let everLoadedMain = false;    // 是否成功加载过主页面：中断期间保留页面、不切等待页
+let needsReload = false;       // 主页面加载失败但保留中 → 服务恢复后强制重载
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const escapeHtml = (s) =>
@@ -207,7 +218,7 @@ function resolveServerCommand() {
 
 // ---------- 服务管理 ----------
 
-function pingServer(timeoutMs = 700) {
+function pingServer(timeoutMs = PING_TIMEOUT_MS) {
   return new Promise((resolve) => {
     let settled = false;
     const done = (ok) => { if (!settled) { settled = true; resolve(ok); } };
@@ -221,6 +232,27 @@ function pingServer(timeoutMs = 700) {
     } catch {
       done(false);
     }
+  });
+}
+
+/**
+ * TCP 端口探测：只确认目标端口是否已被监听（不关心 HTTP 是否响应）。
+ * 用于自启前判断"外部服务正在接管/启动"——端口被占则不再重复拉起，
+ * 消除 EADDRINUSE 反复失败的重试循环（此前日志中每 10~60s 一次）。
+ */
+function probePort(timeoutMs = PROBE_TIMEOUT_MS) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (ok) => { if (!settled) { settled = true; resolve(ok); } };
+    let url;
+    try { url = new URL(APP_URL); } catch { done(false); return; }
+    const host = url.hostname || '127.0.0.1';
+    const port = Number(url.port) || 80;
+    const sock = net.connect({ host, port });
+    sock.setTimeout(timeoutMs);
+    sock.once('connect', () => { sock.destroy(); done(true); });
+    sock.once('timeout', () => { sock.destroy(); done(false); });
+    sock.once('error', () => { sock.destroy(); done(false); });
   });
 }
 
@@ -329,32 +361,47 @@ async function checkOnce() {
   checking = true;
   try {
     lastTickAt = Date.now();
-    const ok = await pingServer(800);
+    const ok = await pingServer(PING_TIMEOUT_MS);
     if (ok) {
       backoffMs = BACKOFF_INITIAL_MS;
-      if (!isMainPage(currentUrl())) loadMainPage(); // 服务可用（无论由谁提供）→ 自动进入
+      // 服务可用（无论由谁提供）→ 自动进入；中断期间保留的页面（加载失败/等待页）恢复后重载
+      if (needsReload || !isMainPage(currentUrl())) loadMainPage();
       return;
     }
     // 服务不可达
     if (serverProc) {
-      // 自己的进程还在但迟迟没有监听（超过 10s）→ 杀掉检查器重启，避免死等
-      if (Date.now() - serverStartedAt > 10000) {
-        lastErr = '进程存在但 10 秒内未监听';
+      // 自己的进程还在但迟迟没有监听（超过宽限期）→ 杀掉交给下一轮重试，避免死等
+      if (Date.now() - serverStartedAt > LISTEN_GRACE_MS) {
+        lastErr = '进程存在但未监听';
         killServerTree();
       } else {
-        loadWaitingPage();
+        if (!everLoadedMain) loadWaitingPage();
         updateWaitingStatus('服务启动中…');
         return;
       }
     }
-    loadWaitingPage();
+    // 已成功加载过主页面：服务中断期间保留当前页面，不切等待页——
+    // Web 前端自带指数退避重连（dsh-client-connection），服务恢复后自动续上，
+    // 避免运行中的会话界面被等待页打断（"自动重启"观感的根源）。
+    if (everLoadedMain) {
+      updateWaitingStatus('服务中断，等待恢复…');
+    } else {
+      loadWaitingPage();
+    }
     if (!AUTO_START) {
       updateWaitingStatus('未连接，自动启动已禁用');
       return;
     }
+    // 自启前先探测端口：外部服务已占用（正在接管/启动）→ 只观察不重复拉起
+    const portBusy = await probePort();
+    if (portBusy) {
+      lastErr = '';
+      if (!everLoadedMain) updateWaitingStatus('外部服务启动中…');
+      return;
+    }
     if (Date.now() - lastSpawnAt() > backoffMs) {
       attemptCount++;
-      updateWaitingStatus(`第 ${attemptCount} 次尝试启动服务…`);
+      if (!everLoadedMain) updateWaitingStatus(`第 ${attemptCount} 次尝试启动服务…`);
       startServer();
       _lastSpawnAt = Date.now();
       backoffMs = Math.min(backoffMs * 1.8, BACKOFF_MAX_MS);
@@ -1083,7 +1130,56 @@ const WINDOW_UI_SCRIPT = `(function () {
       } catch (e) {}
     }
     placeWinCtl();
-    // 事件驱动：DOM 变化时（防抖 120ms）重算三键位置与弹层显示，不再高频全 DOM 扫描
+    // ── 侧边面板切换按钮（Session log 胶囊正下方居中，随壳注入常驻） ──
+    var panelBtn = null;
+    function placePanelBtn() {
+      try {
+        if (!panelBtn || !panelBtn.isConnected) {
+          panelBtn = document.createElement('button');
+          panelBtn.type = 'button';
+          panelBtn.title = '切换侧边面板';
+          panelBtn.style.cssText =
+            'position:fixed;z-index:2147483646;width:28px;height:28px;border:none;border-radius:8px;' +
+            'background:rgba(255,255,255,.06);color:var(--dsw-alias-label-secondary,#c9cfd9);' +
+            'cursor:pointer;display:flex;align-items:center;justify-content:center;' +
+            'transition:background .15s ease,color .15s ease;padding:0';
+          panelBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>';
+          panelBtn.addEventListener('mouseenter', function () { panelBtn.style.background = 'rgba(255,255,255,.13)'; });
+          panelBtn.addEventListener('mouseleave', function () { panelBtn.style.background = 'rgba(255,255,255,.06)'; });
+          panelBtn.addEventListener('click', function () {
+            // 点击闪光反馈（与插件无关，便于区分壳按钮/插件两侧问题）
+            panelBtn.style.background = 'rgba(255,255,255,.75)';
+            setTimeout(placePanelBtn, 180);
+            window.dispatchEvent(new CustomEvent('dsh-panel-toggle'));
+          });
+          document.body.appendChild(panelBtn);
+        }
+        var pill = null;
+        var all = document.querySelectorAll('*');
+        for (var i = all.length - 1; i >= 0; i--) {
+          var el = all[i];
+          if (el.childElementCount > 0) continue;
+          if ((el.textContent || '').trim() === 'Session log') { pill = el; break; }
+        }
+        var anchor = pill ? (pill.closest('button') || pill) : null;
+        if (!anchor) { panelBtn.style.display = 'none'; return; }
+        var r = anchor.getBoundingClientRect();
+        if (!(r.width > 0)) { panelBtn.style.display = 'none'; return; }
+        panelBtn.style.display = 'flex';
+        panelBtn.style.left = (r.left + r.width / 2 - 14) + 'px';
+        panelBtn.style.top = (r.bottom + 8) + 'px';
+        if (window.__dshPanelOpen) {
+          panelBtn.style.background = 'var(--dsw-alias-interactive-bg-hover,#2a3340)';
+          panelBtn.style.color = 'var(--dsw-alias-label-primary,#f9fafb)';
+        } else {
+          panelBtn.style.background = 'rgba(255,255,255,.06)';
+          panelBtn.style.color = 'var(--dsw-alias-label-secondary,#c9cfd9)';
+        }
+      } catch (e) {}
+    }
+    placePanelBtn();
+    setInterval(placePanelBtn, 1200);
+    window.__dshPlacePanelBtn = placePanelBtn;
     var winSyncTimer = null;
     function scheduleWinSync() {
       if (winSyncTimer) return;
@@ -1091,6 +1187,7 @@ const WINDOW_UI_SCRIPT = `(function () {
         winSyncTimer = null;
         applyTopPadding();
         placeWinCtl();
+        placePanelBtn();
         hideCheck();
       }, 120);
     }
@@ -1270,7 +1367,8 @@ function createWindow() {
     }
   });
 
-  // 主框架加载失败不弹窗：交给检查器自愈（等服务就绪自动重载）
+  // 主框架加载失败不弹窗：已加载过主页面时保留页面（前端自动重连），
+  // 服务恢复后由检查器自动重载；首次加载失败才切等待页
   win.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
     if (!isMainFrame || errorCode === -3) return;
     if (SMOKE_TEST) {
@@ -1278,6 +1376,7 @@ function createWindow() {
       app.exit(2);
       return;
     }
+    if (everLoadedMain) { needsReload = true; return; }
     loadWaitingPage();
   });
 
@@ -1285,6 +1384,8 @@ function createWindow() {
   win.webContents.on('did-finish-load', () => {
     const u = win.webContents.getURL();
     if (!/^https?:/i.test(u)) return; // 忽略 data: 等待页
+    everLoadedMain = true;
+    needsReload = false;
     win.webContents.executeJavaScript(UI_LOCALIZE_SCRIPT).catch(() => {});
     win.webContents.executeJavaScript(WINDOW_UI_SCRIPT).catch(() => {});
     pushSettingsState();

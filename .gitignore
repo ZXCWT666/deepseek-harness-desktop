@@ -29,5 +29,39 @@ Thumbs.db
 # balance-status plugin moved to its own repository
 dsh-balance-status/
 
+# plugin sources live in their own repositories — never bundled into the desktop package
+/dsh-wallpaper/
+/dsh-sidepanel/
+/removed-side-panel/
+
+# dev-only copies & one-off artifacts (not part of any release)
+/main.js
+/DSH Desktop.zip
+/app.asar.header.json
+/asar_out_*
+/code-demo.html
+/conversation-client.js
+/layout-client.js
+/served-index.html
+/unit-test-report.html
+/ws-url.txt
+docs/.chrome-dbg*/
+docs/*.png
+DSH Desktop/scripts/finalize-112.ps1
+DSH Desktop/scripts/restart-112.ps1
+
+# ad-hoc session diagnostics (not part of the product)
+scripts/diag-*
+scripts/dump-*
+scripts/measure-*
+scripts/read-session.mjs
+scripts/restart-*
+scripts/scan-*
+scripts/session-*
+scripts/run-snippet.mjs
+scripts/snip-*
+scripts/test-sidebar3.mjs
+scripts/verify-wallpaper.mjs
+
 # runtime test screenshots
 screenshots/

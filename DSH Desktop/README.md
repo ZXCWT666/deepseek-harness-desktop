@@ -1,18 +1,18 @@
-# DSH Desktop 桌面端构建工作区（版本 1.1.2）
+# DSH Desktop 桌面端构建工作区（版本 1.1.3）
 
 DeepSeek Harness 桌面端的源码与构建产物集中目录。桌面端为「纯壳封装 + 服务自愈」：
 Electron 外壳（`shell\main.js`）只做窗口与等待页，界面本身由内置 `dsh web` 服务
-（`DeepSeekHarness-1.1.2\resources\dsh` + `node`）提供。
+（`DeepSeekHarness-1.1.3\resources\dsh` + `node`）提供。
 
 ## 目录结构
 
 ```
 DSH Desktop\
-├── DeepSeekHarness-1.1.2\        完整便携版应用（可直接运行 DeepSeek Harness.exe）
-├── DeepSeek Harness-1.1.2.zip     上述目录的 zip 压缩包（255 MB）
+├── DeepSeekHarness-1.1.3\        完整便携版应用（可直接运行 DeepSeek Harness.exe）
+├── DeepSeek Harness-1.1.3.zip     上述目录的 zip 压缩包（约 255 MB）
 ├── shell\                        桌面端外壳源码（构建 app.asar 的输入）
 │   ├── main.js                   主进程：窗口、服务自愈、托盘、等待页、内置窗口控件
-│   ├── package.json              app 版本（当前 1.1.2）
+│   ├── package.json              app 版本（当前 1.1.3）
 │   └── assets\
 │       ├── brand-mark.svg        等待页鲸鱼图标
 │       ├── brand-name.svg        等待页 deepseek HARNESS 字标
@@ -89,6 +89,26 @@ DSH Desktop\
    - GitHub Actions 四矩阵（win / linux / mac-arm64 / mac-x64）构建发布链：
      推 v* tag 自动产出三平台安装包并挂到同名 Release
 
+8. **运行会话时时不时“自动重启”（服务中断导致整页重载）**（1.1.3）
+   原因：web 服务进程会被外部回收（`server.log` 记录 exit 4294967295/-1、
+   3221225786 强制终止），检查器检测到服务不可达后立即把窗口切到品牌等待页、
+   服务恢复后再整页重新加载——运行中的会话界面被“重启”；叠加 800ms 的过短
+   ping 超时与不做端口探测的自启逻辑，还会形成 EADDRINUSE 反复重试循环
+   （每 10~60s 一次，最长可拖到一分钟）。
+   修复（`shell\main.js`）：
+   - 已成功加载过主页面后，服务中断期间**保留当前页面、不切等待页**——
+     Web 前端自带指数退避重连（`dsh-client-connection`），服务恢复后自动续上，
+     不再表现为“应用自动重启”；
+   - 自启前先 TCP 探测目标端口：外部服务已占用（正在接管/启动）→ 只观察
+     不重复拉起，消除 EADDRINUSE 重试循环；
+   - ping 超时 800ms → 2500ms；监听宽限 10s → 20s，避免启动高峰期误判/误杀。
+   附带修复：
+   - **恢复自包含运行时**：重新内置 Node 运行时（`resources\node`）与完整
+     dsh 依赖树（此前 1.1.2 包裁剪缺失 `readdirp`/`typebox`，内置服务无法启动，
+     只能回退到系统 node + npx 缓存，正是端口竞争加剧的来源）。
+   - 软件包**不含任何插件**（dsh-wallpaper / dsh-sidepanel / dsh-balance-status
+     独立于本包分发）。
+
 ## 重新构建 / 重新打包
 
 ```powershell
@@ -96,28 +116,28 @@ DSH Desktop\
 powershell -ExecutionPolicy Bypass -File .\DSH Desktop\build.ps1
 
 # 指定版本并重新生成 zip
-powershell -ExecutionPolicy Bypass -File .\DSH Desktop\build.ps1 -Version 1.1.2 -Zip
+powershell -ExecutionPolicy Bypass -File .\DSH Desktop\build.ps1 -Version 1.1.3 -Zip
 ```
 
 构建流程：`pack-asar.mjs`（shell\ → artifacts\app.<ver>.asar）→ 覆盖
-`DeepSeekHarness-1.1.2\resources\app.asar` → `rcedit` 写入 exe 版本
-（1.1.2 → `1.1.2.0`）→ `check-asar.mjs` 校验。依赖：`node`（或已安装应用的
+`DeepSeekHarness-1.1.3\resources\app.asar` → `rcedit` 写入 exe 版本
+（1.1.3 → `1.1.3.0`）→ `check-asar.mjs` 校验。依赖：`node`（或已安装应用的
 捆绑运行时）、Chrome（仅验证脚本需要）。
 
 ## 验证
 
 ```powershell
-node .\DSH Desktop\scripts\check-asar.mjs ".\DSH Desktop\DeepSeekHarness-1.1.2\resources\app.asar"
+node .\DSH Desktop\scripts\check-asar.mjs ".\DSH Desktop\DeepSeekHarness-1.1.3\resources\app.asar"
 node .\DSH Desktop\scripts\verify-waiting-page.mjs   # 输出渲染后的等待页间距
 node .\DSH Desktop\scripts\verify-strip-fix.mjs      # 输出 dsh-topstrip display 状态
 ```
 
 ## 部署 / 回滚
 
-- **直接使用**：解压 `DeepSeek Harness-1.1.2.zip`（或运行目录内 `DeepSeek Harness.exe`），
+- **直接使用**：解压 `DeepSeek Harness-1.1.3.zip`（或运行目录内 `DeepSeek Harness.exe`），
   端口默认 `http://127.0.0.1:3080`（桌面端启动内置 dsh web 服务）。
 - **替换已安装版本**：退出应用后将 `resources\app.asar` 换成本包的
-  `DeepSeekHarness-1.1.2\resources\app.asar` 即可。
+  `DeepSeekHarness-1.1.3\resources\app.asar` 即可。
 - **shell 源码引导**：如需在任意的原版 app.asar 上重做修改，先
   `node scripts\extract-asar.mjs <输出目录> <app.asar>` 解包出原始源码，再比对
   本目录 `shell\` 中的修改（见上文「版本历史中的修复」）。
